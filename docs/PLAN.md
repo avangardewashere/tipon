@@ -1,6 +1,6 @@
 # Tipon: v0 plan
 
-> **Tipon** (Tagalog) means *to gather*. Working name. Tagline idea: **Gather it all. Sort it out.**
+> **Tipon** (Tagalog) means *to gather*. Tagline: **Gather it all. Sort it out.**
 > A project manager in the spirit of [buildOS](https://build-os.com): dump everything on your mind,
 > and it becomes projects and tasks you can act on. Built with Next.js, with its own look and feel.
 
@@ -67,7 +67,7 @@ If this doesn't feel right, two other directions:
 
 ```
 Project  id · name · notes · status (active | archived) · createdAt · updatedAt
-Task     id · projectId (empty = Inbox) · title · done · due (YYYY-MM-DD, optional) · createdAt · doneAt
+Task     id · projectId (empty = Inbox) · title · due (YYYY-MM-DD, optional) · doneAt (empty = open) · createdAt · updatedAt
 Dump     id · text · createdAt · ids of the projects and tasks it created
 ```
 
@@ -75,7 +75,7 @@ Three kinds of record. In v1, each one becomes a database table.
 
 ## Blocks
 
-**Progress:** not started
+**Progress:** Block 1 ✅ ([notes](blocks/block-1.md))
 
 | # | Block | What we build | What you learn | How Jest checks it |
 |---|---|---|---|---|
@@ -114,12 +114,12 @@ Website relaunch:             → a project (reused if one with that name exists
 
 | Decision | Default | Decide before | Status |
 |---|---|---|---|
-| Name | **Tipon** (working name). Also considered: **Buo** (*whole*; *buuin* = to put together) | Block 1 (repo and URL) | 🟡 |
+| Name | **Tipon**. Also considered: **Buo** (*whole*; *buuin* = to put together) | Block 1 (repo and URL) | ✅ default kept when Block 1 started |
 | Look and feel | Notebook on a desk | Block 2 | 🟡 |
 | Where data lives in v0 | This device only, with Export and Import. Accounts and sync come in v1 | Block 3 | 🟡 |
 | AI in v0 | Yes, in Block 5. If not, AI moves to v1 and Block 5 becomes Search + a "This week" view | Block 5 | 🟡 |
 | AI model | Claude Opus 5 | Block 5 | 🟡 |
-| Removing projects | Archive only, so it can be undone. Tasks can be deleted | Block 1 | 🟡 |
+| Removing projects | Archive only, with unarchive to undo it. Tasks can be deleted | Block 1 | ✅ built in Block 1 |
 
 ## Known limits of v0 (on purpose)
 
