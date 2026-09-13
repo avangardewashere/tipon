@@ -6,6 +6,13 @@
 
 See [docs/PLAN.md](docs/PLAN.md) for the build plan and [docs/blocks/](docs/blocks/) for notes on each block.
 
+## Where it is now
+
+Block 2 of six. The screens work: **Projects** (index cards, archive), a project page with notes and
+a checklist, and an **Inbox** for tasks with no project. **Today** and **Dump** are signposts for now.
+
+Nothing is saved yet, so a refresh empties the app. Block 3 fixes that.
+
 ## Scripts
 
 | Command | What it does |

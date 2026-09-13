@@ -1,10 +1,11 @@
 import { render, screen } from "@testing-library/react";
-import Home from "@/app/page";
+import TodayPage from "@/app/page";
 
-describe("Home page", () => {
-  it("shows the app name as the main heading", () => {
-    render(<Home />);
+describe("Today page", () => {
+  it("is a signpost until Block 6 fills it in", () => {
+    render(<TodayPage />);
 
-    expect(screen.getByRole("heading", { level: 1, name: "Tipon" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Today" })).toBeInTheDocument();
+    expect(screen.getByText(/Block 6/)).toBeInTheDocument();
   });
 });
