@@ -8,10 +8,12 @@ See [docs/PLAN.md](docs/PLAN.md) for the build plan and [docs/blocks/](docs/bloc
 
 ## Where it is now
 
-Block 2 of six. The screens work: **Projects** (index cards, archive), a project page with notes and
+Block 3 of six. The screens work: **Projects** (index cards, archive), a project page with notes and
 a checklist, and an **Inbox** for tasks with no project. **Today** and **Dump** are signposts for now.
 
-Nothing is saved yet, so a refresh empties the app. Block 3 fixes that.
+Your work is **saved in the browser you use it in** and survives a refresh. `/backup` exports a JSON
+file and imports one back, which is how your work reaches another device — and how it survives
+clearing your browsing data. Accounts and sync are v1.
 
 ## Scripts
 

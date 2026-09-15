@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AppShell } from "@/components/shell/AppShell";
+import { WorkspaceGate } from "@/components/shell/WorkspaceGate";
 import { WorkspaceProvider } from "@/lib/workspace/store";
 
 const geistSans = Geist({
@@ -28,7 +29,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col">
         {/* One provider owns the workspace; every screen below only draws it and sends commands. */}
         <WorkspaceProvider>
-          <AppShell>{children}</AppShell>
+          <AppShell>
+            <WorkspaceGate>{children}</WorkspaceGate>
+          </AppShell>
         </WorkspaceProvider>
       </body>
     </html>

@@ -42,7 +42,15 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
       </nav>
 
       <main className="order-1 flex-1 px-5 py-8 sm:order-2 sm:px-10">
-        <div className="mx-auto w-full max-w-2xl">{children}</div>
+        <div className="mx-auto w-full max-w-2xl">
+          {children}
+          <footer className="pt-12 text-sm text-ink-faint">
+            Saved in this browser only ·{" "}
+            <Link href="/backup" className="underline">
+              Backup &amp; restore
+            </Link>
+          </footer>
+        </div>
       </main>
     </div>
   );

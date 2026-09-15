@@ -16,6 +16,16 @@ describe("AppShell", () => {
     expect(within(nav).getByRole("link", { name: "Projects" })).toHaveAttribute("href", "/projects");
   });
 
+  it("links to Backup from the footer, where it doesn't crowd the three tabs", () => {
+    pathname.mockReturnValue("/projects");
+
+    render(<AppShell>page</AppShell>);
+
+    const footer = screen.getByRole("contentinfo");
+    expect(within(footer).getByRole("link", { name: "Backup & restore" })).toHaveAttribute("href", "/backup");
+    expect(within(screen.getByRole("navigation", { name: "Main" })).getAllByRole("link")).toHaveLength(3);
+  });
+
   it("draws the page it is given", () => {
     pathname.mockReturnValue("/");
 
