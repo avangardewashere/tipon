@@ -8,8 +8,9 @@ See [docs/PLAN.md](docs/PLAN.md) for the build plan and [docs/blocks/](docs/bloc
 
 ## Where it is now
 
-Block 3 of six. The screens work: **Projects** (index cards, archive), a project page with notes and
-a checklist, and an **Inbox** for tasks with no project. **Today** and **Dump** are signposts for now.
+Block 4 of six. **Dump** everything on your mind, press *Sort it*, and check what it found before
+anything is added. **Projects** are index cards; open one for its notes and checklist. **Inbox** holds
+tasks with no project. **Today** is a signpost until Block 6.
 
 Your work is **saved in the browser you use it in** and survives a refresh. `/backup` exports a JSON
 file and imports one back, which is how your work reaches another device — and how it survives

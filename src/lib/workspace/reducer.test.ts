@@ -404,3 +404,49 @@ describe("the reducer as a whole", () => {
     expect(workspaceReducer(base, unknown)).toBe(base);
   });
 });
+
+describe("dump/record", () => {
+  const dump = {
+    type: "dump/record",
+    id: "d-1",
+    text: "call the bank tomorrow\n\nWebsite:\n- pick a host",
+    projectIds: ["p-web"],
+    taskIds: ["t-1", "t-2"],
+    now: 1_000,
+  } as const;
+
+  it("keeps the dump exactly as it was typed", () => {
+    const after = workspaceReducer(emptyWorkspace, dump);
+
+    expect(after.dumps).toEqual([
+      {
+        id: "d-1",
+        text: "call the bank tomorrow\n\nWebsite:\n- pick a host",
+        createdAt: 1_000,
+        projectIds: ["p-web"],
+        taskIds: ["t-1", "t-2"],
+      },
+    ]);
+  });
+
+  it("keeps a dump that added nothing at all", () => {
+    const after = workspaceReducer(emptyWorkspace, { ...dump, projectIds: [], taskIds: [] });
+
+    expect(after.dumps[0]).toMatchObject({ projectIds: [], taskIds: [] });
+  });
+
+  it("ignores an id that is already used", () => {
+    const after = workspaceReducer(emptyWorkspace, dump);
+
+    expect(workspaceReducer(after, { ...dump, text: "something else" })).toBe(after);
+  });
+
+  it("leaves projects and tasks exactly as they were", () => {
+    const before = workspaceReducer(emptyWorkspace, { type: "project/add", id: "p-web", name: "Website", now: 1 });
+
+    const after = workspaceReducer(before, dump);
+
+    expect(after.projects).toBe(before.projects);
+    expect(after.tasks).toBe(before.tasks);
+  });
+});

@@ -29,6 +29,13 @@ export type WorkspaceStore = Readonly<{
   dismissNotice: () => void;
   /** Sends one command. Ids and the clock are stamped on here, never inside a component. */
   run: (command: WorkspaceCommand) => void;
+  /**
+   * Sends actions that were worked out together — a brain dump's whole commit, where a
+   * task needs the id of the project made one action earlier. Use `run` for anything else.
+   */
+  runAll: (actions: readonly WorkspaceAction[]) => void;
+  /** The id maker, for the same reason: pure code that builds actions needs one. */
+  createId: () => string;
   /** Swaps in a whole workspace, which only an import does. */
   replaceWorkspace: (workspace: Workspace) => void;
   /** The store the screens save to, handed to the Backup screen for export and import. */
@@ -102,6 +109,12 @@ export function WorkspaceProvider({
     [createId, now],
   );
 
+  const runAll = useCallback((actions: readonly WorkspaceAction[]) => {
+    // React applies these in order and renders once, so the reducer sees the project
+    // before the task that points at it.
+    for (const action of actions) dispatch(action);
+  }, []);
+
   const replaceWorkspace = useCallback((workspace: Workspace) => {
     dispatch({ type: "store/replace", workspace });
   }, []);
@@ -115,11 +128,13 @@ export function WorkspaceProvider({
       notice: state.notice,
       dismissNotice,
       run,
+      runAll,
+      createId,
       replaceWorkspace,
       store,
       now,
     }),
-    [state, dismissNotice, run, replaceWorkspace, store, now],
+    [state, dismissNotice, run, runAll, createId, replaceWorkspace, store, now],
   );
 
   return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>;

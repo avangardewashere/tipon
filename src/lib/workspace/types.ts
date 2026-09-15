@@ -30,10 +30,27 @@ export type Task = Readonly<{
   updatedAt: number;
 }>;
 
+/**
+ * One brain dump, kept exactly as it was typed, with what it added.
+ *
+ * The ids are a receipt, not a link: a task named here may have been deleted since, and
+ * that's fine. Nothing looks a dump's ids up expecting to find them all.
+ */
+export type Dump = Readonly<{
+  id: string;
+  /** The text as typed, newlines and all. */
+  text: string;
+  createdAt: number;
+  /** Projects this dump created. Projects it merely joined aren't listed. */
+  projectIds: readonly string[];
+  taskIds: readonly string[];
+}>;
+
 /** Everything the app knows. In v1, each list becomes a database table. */
 export type Workspace = Readonly<{
   projects: readonly Project[];
   tasks: readonly Task[];
+  dumps: readonly Dump[];
 }>;
 
-export const emptyWorkspace: Workspace = { projects: [], tasks: [] };
+export const emptyWorkspace: Workspace = { projects: [], tasks: [], dumps: [] };

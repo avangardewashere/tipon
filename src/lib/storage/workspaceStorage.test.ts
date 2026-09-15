@@ -15,6 +15,7 @@ import type { Workspace } from "@/lib/workspace/types";
 const NOW = 1_000;
 
 const workspace: Workspace = {
+  dumps: [],
   projects: [{ id: "p-web", name: "Website relaunch", notes: "", status: "active", createdAt: 1, updatedAt: 1 }],
   tasks: [{ id: "t-1", projectId: "p-web", title: "Pick a host", due: null, doneAt: null, createdAt: 2, updatedAt: 2 }],
 };
@@ -104,7 +105,7 @@ describe("saveWorkspace", () => {
 
 describe("importText", () => {
   it("replaces what's saved and keeps the old copy", () => {
-    const store = memoryStore({ [SAVE_KEY]: serializeSaveFile(toSaveFile({ projects: [], tasks: [] }, 10)) });
+    const store = memoryStore({ [SAVE_KEY]: serializeSaveFile(toSaveFile({ projects: [], tasks: [], dumps: [] }, 10)) });
 
     const outcome = importText(store, exportText(workspace, 900), NOW);
 
@@ -132,7 +133,7 @@ describe("importText", () => {
   it("refuses rather than replace data it couldn't copy aside first", () => {
     const store = refusingStore({ [SAVE_KEY]: saved });
 
-    const outcome = importText(store, exportText({ projects: [], tasks: [] }, 900), NOW);
+    const outcome = importText(store, exportText({ projects: [], tasks: [], dumps: [] }, 900), NOW);
 
     expect(outcome.ok).toBe(false);
     expect(store.read(SAVE_KEY)).toBe(saved);

@@ -32,10 +32,23 @@ const taskSchema = z.object({
   updatedAt: timestamp,
 });
 
+const dumpSchema = z.object({
+  id: z.string().min(1),
+  text: z.string(),
+  createdAt: timestamp,
+  // Ids of things the dump added. They're a receipt: anything named here may have been
+  // deleted since, so unlike a task's projectId these are never checked against the lists.
+  projectIds: z.array(z.string().min(1)),
+  taskIds: z.array(z.string().min(1)),
+});
+
 const workspaceSchema = z
   .object({
     projects: z.array(projectSchema),
     tasks: z.array(taskSchema),
+    // Added in Block 4. A file saved before then has no dumps, and loads as none — an
+    // added field with a default needs no new version; renaming or removing one would.
+    dumps: z.array(dumpSchema).default([]),
   })
   // Two rules a single field can't express. A duplicate id or a task pointing at a
   // project that isn't there would break screens in ways that are hard to explain later.

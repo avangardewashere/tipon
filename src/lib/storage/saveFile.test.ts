@@ -9,6 +9,7 @@ import {
 import type { Workspace } from "@/lib/workspace/types";
 
 const workspace: Workspace = {
+  dumps: [],
   projects: [
     { id: "p-web", name: "Website relaunch", notes: "Launch in March.", status: "active", createdAt: 1, updatedAt: 2 },
     { id: "p-old", name: "Old site", notes: "", status: "archived", createdAt: 1, updatedAt: 3 },
@@ -94,8 +95,60 @@ describe("save file", () => {
     expect(result.ok === false && describeProblem(result.problem)).toContain("v7");
   });
 
+  it("loads a file saved before dumps existed, as a workspace with no dumps", () => {
+    // Exactly what Block 3 wrote: same version, no `dumps` field at all.
+    const block3File = JSON.stringify({
+      app: "tipon",
+      version: 1,
+      savedAt: 1_000,
+      workspace: { projects: workspace.projects, tasks: workspace.tasks },
+    });
+
+    const result = parseSaveFile(block3File);
+
+    expect(result.ok === true && result.saveFile.workspace).toEqual({ ...workspace, dumps: [] });
+  });
+
+  it("keeps the dumps it was given", () => {
+    const withDump: Workspace = {
+      ...workspace,
+      dumps: [{ id: "d-1", text: "call the bank tomorrow", createdAt: 20, projectIds: [], taskIds: ["t-2"] }],
+    };
+
+    const result = parseSaveFile(serializeSaveFile(toSaveFile(withDump, 1_000)));
+
+    expect(result.ok === true && result.saveFile.workspace.dumps).toEqual(withDump.dumps);
+  });
+
+  it("refuses a dump that is missing its text", () => {
+    const result = parseSaveFile(
+      JSON.stringify({
+        app: "tipon",
+        version: 1,
+        savedAt: 1,
+        workspace: { projects: [], tasks: [], dumps: [{ id: "d-1", createdAt: 1, projectIds: [], taskIds: [] }] },
+      }),
+    );
+
+    expect(result.ok).toBe(false);
+  });
+
+  it("keeps a dump that names things which have since been deleted", () => {
+    // Unlike a task's projectId, these ids are a receipt and are never checked.
+    const result = parseSaveFile(
+      JSON.stringify({
+        app: "tipon",
+        version: 1,
+        savedAt: 1,
+        workspace: { projects: [], tasks: [], dumps: [{ id: "d-1", text: "x", createdAt: 1, projectIds: ["gone"], taskIds: ["gone too"] }] },
+      }),
+    );
+
+    expect(result.ok).toBe(true);
+  });
+
   it("keeps an empty workspace", () => {
-    const empty: Workspace = { projects: [], tasks: [] };
+    const empty: Workspace = { projects: [], tasks: [], dumps: [] };
 
     const result = parseSaveFile(serializeSaveFile(toSaveFile(empty, 1)));
 

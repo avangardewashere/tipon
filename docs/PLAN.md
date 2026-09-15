@@ -75,7 +75,7 @@ Three kinds of record. In v1, each one becomes a database table.
 
 ## Blocks
 
-**Progress:** Block 1 ✅ ([notes](blocks/block-1.md)) · Block 2 ✅ ([notes](blocks/block-2.md)) · Block 3 ✅ ([notes](blocks/block-3.md))
+**Progress:** Block 1 ✅ ([notes](blocks/block-1.md)) · Block 2 ✅ ([notes](blocks/block-2.md)) · Block 3 ✅ ([notes](blocks/block-3.md)) · Block 4 ✅ ([notes](blocks/block-4.md))
 
 | # | Block | What we build | What you learn | How Jest checks it |
 |---|---|---|---|---|
