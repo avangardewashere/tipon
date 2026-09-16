@@ -9,6 +9,9 @@ export const DRAFT_KEY = "tipon.dump.draft";
 /** The access code for Claude. Kept per browser, like everything else Tipon knows. */
 export const ACCESS_CODE_KEY = "tipon.accessCode";
 
+/** Set once the welcome on Today has been read and dismissed. */
+export const WELCOME_KEY = "tipon.welcomeDone";
+
 type SavedTextState = Readonly<{ text: string; loaded: boolean }>;
 type SavedTextAction = { type: "loaded"; text: string } | { type: "set"; text: string };
 

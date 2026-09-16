@@ -16,7 +16,7 @@ import { workspaceReducer, type WorkspaceAction } from "./reducer";
 import { emptyWorkspace, type Workspace } from "./types";
 import { browserStore, memoryStore, type KeyValueStore } from "@/lib/storage/keyValueStore";
 import { describeProblem } from "@/lib/storage/saveFile";
-import { loadWorkspace, saveWorkspace, type LoadOutcome } from "@/lib/storage/workspaceStorage";
+import { loadWorkspace, SAVE_KEY, saveWorkspace, type LoadOutcome } from "@/lib/storage/workspaceStorage";
 
 /** "loading" until the browser's saved copy has been read. The server never gets past it. */
 export type WorkspaceStatus = "loading" | "ready";
@@ -74,6 +74,10 @@ export function WorkspaceProvider({
   const [store] = useState(() => given ?? browserStore() ?? memoryStore());
   const [state, dispatch] = useReducer(storeReducer, startingState);
   const loadedFrom = useRef<KeyValueStore | null>(null);
+  // The workspace as it currently stands on disk — whether we wrote it or read it.
+  // Saving it again would be pointless, and between two open tabs it would be worse than
+  // pointless: each save wakes the other tab, which loads, saves, and wakes this one back.
+  const onDisk = useRef<Workspace | null>(null);
 
   useEffect(() => {
     // Once per store, and no more. React runs effects twice in development, and reading
@@ -83,7 +87,31 @@ export function WorkspaceProvider({
     if (loadedFrom.current === store) return;
     loadedFrom.current = store;
 
-    dispatch({ type: "store/loaded", outcome: loadWorkspace(store, now()) });
+    const outcome = loadWorkspace(store, now());
+    if (outcome.status === "loaded") onDisk.current = outcome.workspace;
+
+    dispatch({ type: "store/loaded", outcome });
+  }, [store, now]);
+
+  useEffect(() => {
+    // Another tab saved. Without this, two open tabs each hold their own idea of the
+    // workspace and whichever saves last wipes the other's work — the one real way to
+    // lose data in v0. Reading the file back makes both tabs agree.
+    if (typeof window === "undefined") return;
+
+    function onStorage(event: StorageEvent) {
+      // `null` means someone cleared the whole of storage, which is also our business.
+      if (event.key !== SAVE_KEY && event.key !== null) return;
+
+      const outcome = loadWorkspace(store, now());
+      if (outcome.status === "loaded") {
+        onDisk.current = outcome.workspace;
+        dispatch({ type: "store/replace", workspace: outcome.workspace });
+      }
+    }
+
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
   }, [store, now]);
 
   useEffect(() => {
@@ -92,7 +120,9 @@ export function WorkspaceProvider({
     // to be unreadable and we couldn't copy it aside: saving over data we couldn't keep is
     // the one thing we won't do.
     if (!state.canSave) return;
+    if (state.workspace === onDisk.current) return;
 
+    onDisk.current = state.workspace;
     const outcome = saveWorkspace(store, state.workspace, now());
     if (!outcome.ok) {
       dispatch({

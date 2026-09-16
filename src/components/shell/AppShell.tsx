@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+import { SHORTCUTS } from "@/lib/shortcuts/shortcuts";
+import { useShortcuts } from "@/lib/shortcuts/useShortcuts";
 
 /** Three places to be. On a phone they sit under your thumb; on desktop they become a left rail. */
 export const NAV_ITEMS = [
@@ -13,6 +15,7 @@ export const NAV_ITEMS = [
 
 export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
   const pathname = usePathname() ?? "/";
+  useShortcuts();
 
   return (
     <div className="flex min-h-full flex-1 flex-col sm:flex-row">
@@ -44,11 +47,23 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
       <main className="order-1 flex-1 px-5 py-8 sm:order-2 sm:px-10">
         <div className="mx-auto w-full max-w-2xl">
           {children}
-          <footer className="pt-12 text-sm text-ink-faint">
-            Saved in this browser only ·{" "}
-            <Link href="/backup" className="underline">
-              Backup &amp; restore
-            </Link>
+          <footer className="space-y-1 pt-12 text-sm text-ink-faint">
+            <p>
+              Saved in this browser only ·{" "}
+              <Link href="/backup" className="underline">
+                Backup &amp; restore
+              </Link>
+            </p>
+            {/* A keyboard hint is no use on a phone, so it only appears where there is one. */}
+            <p className="hidden sm:block">
+              Keys:{" "}
+              {SHORTCUTS.map((shortcut, index) => (
+                <span key={shortcut.key}>
+                  {index > 0 && " · "}
+                  <kbd className="font-mono text-ink-soft">{shortcut.key.toUpperCase()}</kbd> {shortcut.label}
+                </span>
+              ))}
+            </p>
           </footer>
         </div>
       </main>

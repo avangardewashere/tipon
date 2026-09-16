@@ -1,12 +1,12 @@
 import { StrictMode } from "react";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { renderToStaticMarkup } from "react-dom/server";
 import userEvent from "@testing-library/user-event";
 import { storeReducer, useWorkspace, WorkspaceProvider } from "./store";
 import { WorkspaceGate } from "@/components/shell/WorkspaceGate";
 import { memoryStore } from "@/lib/storage/keyValueStore";
 import { parseSaveFile } from "@/lib/storage/saveFile";
-import { KEPT_PREFIX, SAVE_KEY } from "@/lib/storage/workspaceStorage";
+import { KEPT_PREFIX, SAVE_KEY, saveWorkspace } from "@/lib/storage/workspaceStorage";
 import { emptyWorkspace } from "./types";
 import { makeProject, makeWorkspace, NOW, renderWithWorkspace, storeHolding } from "@/test/workspace";
 
@@ -165,6 +165,95 @@ describe("WorkspaceProvider and storage", () => {
     await user.click(screen.getByRole("button", { name: "Add project" }));
 
     expect(screen.getByTestId("notice")).toHaveTextContent("can't save on this device");
+  });
+});
+
+describe("two tabs of Tipon", () => {
+  const website = makeWorkspace({ projects: [makeProject({ id: "p-web", name: "Website relaunch" })] });
+
+  /** A store that counts what it was asked to write, so a loop shows up as a number. */
+  function countingStore(inner = memoryStore()) {
+    const writes: string[] = [];
+    return {
+      store: { ...inner, write: (key: string, value: string) => { writes.push(key); inner.write(key, value); } },
+      writes,
+    };
+  }
+
+  it("doesn't write back what it just read", () => {
+    const { store, writes } = countingStore(storeHolding(website));
+
+    renderWithWorkspace(<Probe />, { store });
+
+    // Two tabs both saving what they just loaded is a loop that never settles.
+    expect(writes).toEqual([]);
+  });
+
+  it("doesn't write back what another tab saved either", () => {
+    const { store, writes } = countingStore();
+    renderWithWorkspace(<Probe />, { store });
+    saveWorkspace(store, website, NOW);
+    writes.length = 0;
+
+    act(() => {
+      window.dispatchEvent(new StorageEvent("storage", { key: SAVE_KEY }));
+    });
+
+    expect(writes).toEqual([]);
+    expect(screen.getByRole("listitem")).toHaveTextContent("Website relaunch");
+  });
+
+  it("still saves a change of its own after reading another tab's", async () => {
+    const { store, writes } = countingStore();
+    const { user } = renderWithWorkspace(<Probe />, { store });
+    saveWorkspace(store, makeWorkspace({ projects: [makeProject({ id: "p-1", name: "Health" })] }), NOW);
+    act(() => {
+      window.dispatchEvent(new StorageEvent("storage", { key: SAVE_KEY }));
+    });
+    writes.length = 0;
+
+    await user.click(screen.getByRole("button", { name: "Add project" }));
+
+    expect(writes).toEqual([SAVE_KEY]);
+    expect(screen.getAllByRole("listitem")).toHaveLength(2);
+  });
+
+  it("picks up what another tab saved", () => {
+    const store = memoryStore();
+    renderWithWorkspace(<Probe />, { store });
+    expect(screen.queryByRole("listitem")).not.toBeInTheDocument();
+
+    // The other tab saves, and the browser tells this one.
+    saveWorkspace(store, website, NOW);
+    act(() => {
+      window.dispatchEvent(new StorageEvent("storage", { key: SAVE_KEY }));
+    });
+
+    expect(screen.getByRole("listitem")).toHaveTextContent("p-web · Website relaunch");
+  });
+
+  it("takes notice when the whole of storage is cleared", () => {
+    const store = memoryStore();
+    renderWithWorkspace(<Probe />, { store });
+
+    saveWorkspace(store, website, NOW);
+    act(() => {
+      window.dispatchEvent(new StorageEvent("storage", { key: null }));
+    });
+
+    expect(screen.getByRole("listitem")).toHaveTextContent("Website relaunch");
+  });
+
+  it("ignores a change to something that isn't the workspace", () => {
+    const store = memoryStore();
+    renderWithWorkspace(<Probe />, { store });
+
+    saveWorkspace(store, website, NOW);
+    act(() => {
+      window.dispatchEvent(new StorageEvent("storage", { key: "tipon.dump.draft" }));
+    });
+
+    expect(screen.queryByRole("listitem")).not.toBeInTheDocument();
   });
 });
 

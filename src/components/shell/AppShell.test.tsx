@@ -1,10 +1,14 @@
 import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { AppShell } from "./AppShell";
 
 const pathname = jest.fn<string, []>();
-jest.mock("next/navigation", () => ({ usePathname: () => pathname() }));
+const push = jest.fn();
+jest.mock("next/navigation", () => ({ usePathname: () => pathname(), useRouter: () => ({ push }) }));
 
 describe("AppShell", () => {
+  beforeEach(() => push.mockClear());
+
   it("offers the three places to be", () => {
     pathname.mockReturnValue("/");
 
@@ -24,6 +28,43 @@ describe("AppShell", () => {
     const footer = screen.getByRole("contentinfo");
     expect(within(footer).getByRole("link", { name: "Backup & restore" })).toHaveAttribute("href", "/backup");
     expect(within(screen.getByRole("navigation", { name: "Main" })).getAllByRole("link")).toHaveLength(3);
+  });
+
+  it("goes to a page when its key is pressed", async () => {
+    pathname.mockReturnValue("/");
+    const user = userEvent.setup();
+    render(<AppShell>page</AppShell>);
+
+    await user.keyboard("d");
+
+    expect(push).toHaveBeenCalledWith("/dump");
+  });
+
+  it("keeps quiet while you are writing in the page", async () => {
+    pathname.mockReturnValue("/dump");
+    const user = userEvent.setup();
+    render(
+      <AppShell>
+        <label htmlFor="notepad">Your dump</label>
+        <textarea id="notepad" />
+      </AppShell>,
+    );
+
+    await user.click(screen.getByLabelText("Your dump"));
+    await user.keyboard("dump the bins today");
+
+    expect(push).not.toHaveBeenCalled();
+    expect(screen.getByLabelText("Your dump")).toHaveValue("dump the bins today");
+  });
+
+  it("shows the keys it listens for", () => {
+    pathname.mockReturnValue("/");
+
+    render(<AppShell>page</AppShell>);
+
+    const footer = screen.getByRole("contentinfo");
+    expect(within(footer).getByText("T")).toBeInTheDocument();
+    expect(footer).toHaveTextContent("Keys:");
   });
 
   it("draws the page it is given", () => {
