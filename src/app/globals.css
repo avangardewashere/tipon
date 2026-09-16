@@ -1,25 +1,49 @@
 @import "tailwindcss";
 
+/*
+ * "Notebook on a desk": warm paper, ink-dark text, one highlighter colour, thin rules
+ * instead of boxes. Every colour is a variable, so dark mode (after v0) is a short block
+ * of overrides rather than a rewrite of every component.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --paper: #f7f2e8;
+  --paper-raised: #fffdf8;
+  --ink: #1f1b16;
+  --ink-soft: #5d5648;
+  --ink-faint: #8b8271;
+  --rule: #e0d7c5;
+  --highlight: #ffd45e;
+  --danger: #8f2f22;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-paper: var(--paper);
+  --color-paper-raised: var(--paper-raised);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-ink-faint: var(--ink-faint);
+  --color-rule: var(--rule);
+  --color-highlight: var(--highlight);
+  --color-danger: var(--danger);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* A system serif: no extra download, and it exists on Android and desktop alike. */
+  --font-serif: ui-serif, Georgia, "Times New Roman", serif;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--paper);
+  color: var(--ink);
+}
+
+/* Faint ruled lines, the way a page in a notebook looks. */
+.ruled {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent,
+    transparent calc(1.75rem - 1px),
+    var(--rule) calc(1.75rem - 1px),
+    var(--rule) 1.75rem
+  );
+  line-height: 1.75rem;
 }

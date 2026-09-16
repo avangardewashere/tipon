@@ -1,10 +1,11 @@
-import { render, screen } from "@testing-library/react";
-import Home from "@/app/page";
+import { screen } from "@testing-library/react";
+import TodayPage from "@/app/page";
+import { renderWithWorkspace } from "@/test/workspace";
 
-describe("Home page", () => {
-  it("shows the app name as the main heading", () => {
-    render(<Home />);
+describe("Today page", () => {
+  it("is where the app opens", () => {
+    renderWithWorkspace(<TodayPage />);
 
-    expect(screen.getByRole("heading", { level: 1, name: "Tipon" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Today" })).toBeInTheDocument();
   });
 });

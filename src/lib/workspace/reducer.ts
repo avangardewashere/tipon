@@ -1,6 +1,6 @@
 import { isDayKey, type DayKey } from "@/lib/dates/dayKey";
 import { findProjectNameProblem } from "./rules";
-import type { Project, Task, Workspace } from "./types";
+import type { Dump, Project, Task, Workspace } from "./types";
 
 /** Leave a field out to keep it as it is. */
 export type ProjectChanges = Readonly<{ name?: string; notes?: string }>;
@@ -25,7 +25,15 @@ export type WorkspaceAction =
   | { type: "task/complete"; id: string; now: number }
   | { type: "task/reopen"; id: string; now: number }
   | { type: "task/move"; id: string; projectId: string | null; now: number }
-  | { type: "task/delete"; id: string };
+  | { type: "task/delete"; id: string }
+  | {
+      type: "dump/record";
+      id: string;
+      text: string;
+      projectIds: readonly string[];
+      taskIds: readonly string[];
+      now: number;
+    };
 
 /**
  * Returns the workspace after `action`.
@@ -96,6 +104,21 @@ export function workspaceReducer(state: Workspace, action: WorkspaceAction): Wor
     case "task/delete": {
       const tasks = state.tasks.filter((task) => task.id !== action.id);
       return tasks.length === state.tasks.length ? state : { ...state, tasks };
+    }
+
+    case "dump/record": {
+      if (hasId(state.dumps, action.id)) return state;
+
+      // The text is kept exactly as typed: this is the record of what you wrote, not a
+      // tidied version of it.
+      const dump: Dump = {
+        id: action.id,
+        text: action.text,
+        createdAt: action.now,
+        projectIds: [...action.projectIds],
+        taskIds: [...action.taskIds],
+      };
+      return { ...state, dumps: [...state.dumps, dump] };
     }
 
     default: {
