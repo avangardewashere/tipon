@@ -5,7 +5,7 @@
 *Tipon* is Tagalog for *to gather*. Write down everything on your mind in one go, press **Sort it**,
 check what it found, and get on with your day.
 
-**v0** — six blocks, 497 tests, and no account to create.
+**v0** — six blocks, 499 tests, and no account to create.
 
 ## What it does
 
