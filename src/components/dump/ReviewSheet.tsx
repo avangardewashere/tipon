@@ -9,6 +9,10 @@ import type { Project } from "@/lib/workspace/types";
 export type ReviewSheetProps = Readonly<{
   proposal: Proposal;
   kept: Kept;
+  /** Who did the sorting, so nobody has to guess whether Claude was involved. */
+  source: "claude" | "rules";
+  /** Why it fell back to the rules, when it did. */
+  problem: string | null;
   /** Your projects, so an edited name can be checked before anything is added. */
   projects: readonly Project[];
   onToggleProject: (key: string) => void;
@@ -29,6 +33,8 @@ export type ReviewSheetProps = Readonly<{
 export function ReviewSheet({
   proposal,
   kept,
+  source,
+  problem: sortProblem,
   projects,
   onToggleProject,
   onToggleTask,
@@ -49,6 +55,14 @@ export function ReviewSheet({
         <p className="pt-1 text-ink-soft">
           Nothing has been added yet. Untick anything you don&apos;t want, fix what&apos;s wrong, then add the rest.
         </p>
+        <p className="pt-2 text-sm text-ink-faint">
+          {source === "claude" ? "Sorted by Claude." : "Sorted with rules, on this device."}
+        </p>
+        {sortProblem !== null && (
+          <p role="alert" className="pt-1 text-sm text-danger">
+            {sortProblem}
+          </p>
+        )}
       </div>
 
       {proposal.projects.length > 0 && (

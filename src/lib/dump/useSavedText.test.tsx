@@ -1,23 +1,23 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { DRAFT_KEY, useDraft } from "./useDraft";
+import { DRAFT_KEY, useSavedText } from "./useSavedText";
 import { memoryStore, type KeyValueStore } from "@/lib/storage/keyValueStore";
 
 function Notepad({ store }: Readonly<{ store: KeyValueStore }>) {
-  const { draft, setDraft, clearDraft } = useDraft(store);
+  const { text, setText, clearText } = useSavedText(store, DRAFT_KEY);
 
   return (
     <div>
       <label htmlFor="draft">Draft</label>
-      <textarea id="draft" value={draft} onChange={(event) => setDraft(event.target.value)} />
-      <button type="button" onClick={clearDraft}>
+      <textarea id="draft" value={text} onChange={(event) => setText(event.target.value)} />
+      <button type="button" onClick={clearText}>
         Clear
       </button>
     </div>
   );
 }
 
-describe("useDraft", () => {
+describe("useSavedText", () => {
   it("starts from what was left behind", () => {
     render(<Notepad store={memoryStore({ [DRAFT_KEY]: "half a thought" })} />);
 

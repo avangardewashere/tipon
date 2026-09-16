@@ -1,6 +1,6 @@
 import { screen, within } from "@testing-library/react";
 import { DumpScreen } from "./DumpScreen";
-import { DRAFT_KEY } from "@/lib/dump/useDraft";
+import { ACCESS_CODE_KEY, DRAFT_KEY } from "@/lib/dump/useSavedText";
 import { memoryStore } from "@/lib/storage/keyValueStore";
 import { parseSaveFile } from "@/lib/storage/saveFile";
 import { exportText, SAVE_KEY } from "@/lib/storage/workspaceStorage";
@@ -17,6 +17,12 @@ Website relaunch:
 
 function render(options: Parameters<typeof renderWithWorkspace>[1] = {}) {
   return renderWithWorkspace(<DumpScreen />, { now: NOW, ...options });
+}
+
+/** Sorting is a round trip now, even when it stays on this device, so wait for the sheet. */
+async function sortIt(user: ReturnType<typeof renderWithWorkspace>["user"]) {
+  await user.click(screen.getByRole("button", { name: "Sort it" }));
+  await screen.findByRole("heading", { name: "Sort it out" });
 }
 
 /** What the workspace looks like after the screen has saved it. */
@@ -61,7 +67,7 @@ describe("Dump screen", () => {
     const store = memoryStore({ [DRAFT_KEY]: EXAMPLE });
     const { user } = render({ store });
 
-    await user.click(screen.getByRole("button", { name: "Sort it" }));
+    await sortIt(user);
 
     expect(screen.getByRole("checkbox", { name: "Keep project “Website relaunch”" })).toBeChecked();
     expect(screen.getByRole("checkbox", { name: "Keep task “call the bank”" })).toBeChecked();
@@ -74,7 +80,7 @@ describe("Dump screen", () => {
   it("reads the date words", async () => {
     const { user } = render({ store: memoryStore({ [DRAFT_KEY]: EXAMPLE }) });
 
-    await user.click(screen.getByRole("button", { name: "Sort it" }));
+    await sortIt(user);
 
     expect(screen.getByLabelText("Due date for “call the bank”")).toHaveValue("2026-09-15");
     expect(screen.getByLabelText("Due date for “pick a hosting plan”")).toHaveValue("2026-09-18");
@@ -85,7 +91,7 @@ describe("Dump screen", () => {
     const store = memoryStore({ [DRAFT_KEY]: EXAMPLE });
     const { user } = render({ store });
 
-    await user.click(screen.getByRole("button", { name: "Sort it" }));
+    await sortIt(user);
     await user.click(screen.getByRole("checkbox", { name: "Keep task “write the about page”" }));
     await user.click(screen.getByRole("button", { name: "Add 1 project and 2 tasks" }));
 
@@ -99,7 +105,7 @@ describe("Dump screen", () => {
     const store = memoryStore({ [DRAFT_KEY]: EXAMPLE });
     const { user } = render({ store });
 
-    await user.click(screen.getByRole("button", { name: "Sort it" }));
+    await sortIt(user);
     await user.click(screen.getByRole("button", { name: "Add 1 project and 3 tasks" }));
 
     expect(screen.getByRole("status")).toHaveTextContent("Added 1 project and 3 tasks.");
@@ -111,7 +117,7 @@ describe("Dump screen", () => {
     const store = memoryStore({ [DRAFT_KEY]: EXAMPLE });
     const { user } = render({ store });
 
-    await user.click(screen.getByRole("button", { name: "Sort it" }));
+    await sortIt(user);
     await user.click(screen.getByRole("checkbox", { name: "Keep project “Website relaunch”" }));
     await user.click(screen.getByRole("button", { name: "Add 3 tasks" }));
 
@@ -124,7 +130,7 @@ describe("Dump screen", () => {
     const store = memoryStore({ [DRAFT_KEY]: "call the bank tomorrow" });
     const { user } = render({ store });
 
-    await user.click(screen.getByRole("button", { name: "Sort it" }));
+    await sortIt(user);
     await user.clear(screen.getByLabelText("Task title for “call the bank”"));
     await user.type(screen.getByLabelText("Task title for “call the bank”"), "call the bank about the loan");
     await user.clear(screen.getByLabelText("Due date for “call the bank”"));
@@ -136,7 +142,7 @@ describe("Dump screen", () => {
   it("adds nothing when everything is unticked", async () => {
     const { user } = render({ store: memoryStore({ [DRAFT_KEY]: "call the bank" }) });
 
-    await user.click(screen.getByRole("button", { name: "Sort it" }));
+    await sortIt(user);
     await user.click(screen.getByRole("checkbox", { name: "Keep task “call the bank”" }));
 
     expect(screen.getByRole("button", { name: "Nothing ticked" })).toBeDisabled();
@@ -145,7 +151,7 @@ describe("Dump screen", () => {
   it("goes back to the page with the writing still on it", async () => {
     const { user } = render({ store: memoryStore({ [DRAFT_KEY]: EXAMPLE }) });
 
-    await user.click(screen.getByRole("button", { name: "Sort it" }));
+    await sortIt(user);
     await user.click(screen.getByRole("button", { name: "Back to writing" }));
 
     expect(screen.getByLabelText("Your dump")).toHaveValue(EXAMPLE);
@@ -161,7 +167,7 @@ describe("Dump screen", () => {
     });
     const { user } = render({ store });
 
-    await user.click(screen.getByRole("button", { name: "Sort it" }));
+    await sortIt(user);
     expect(screen.getByText("yours")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Add 1 project and 1 task" }));
 
@@ -177,7 +183,7 @@ describe("Dump screen", () => {
     });
     const { user } = render({ store });
 
-    await user.click(screen.getByRole("button", { name: "Sort it" }));
+    await sortIt(user);
     await user.clear(screen.getByLabelText("Project name for “Health”"));
     await user.type(screen.getByLabelText("Project name for “Health”"), "Website relaunch");
 
@@ -189,7 +195,7 @@ describe("Dump screen", () => {
     const store = memoryStore({ [DRAFT_KEY]: EXAMPLE });
     const { user } = render({ store });
 
-    await user.click(screen.getByRole("button", { name: "Sort it" }));
+    await sortIt(user);
     await user.click(screen.getByRole("button", { name: "Add 1 project and 3 tasks" }));
 
     const history = screen.getByRole("region", { name: "Earlier dumps" });
@@ -203,5 +209,96 @@ describe("Dump screen", () => {
     render();
 
     expect(screen.queryByRole("region", { name: "Earlier dumps" })).not.toBeInTheDocument();
+  });
+});
+
+describe("Dump screen with Claude", () => {
+  const claudeProposal = {
+    projects: [{ key: "p1", name: "Website relaunch", existingId: null, wasArchived: false }],
+    tasks: [
+      { key: "t1", title: "call the bank about the loan", due: "2026-09-15", projectKey: null },
+      { key: "t2", title: "pick a hosting plan", due: "2026-09-18", projectKey: "p1" },
+    ],
+  };
+
+  /**
+   * jsdom has neither `fetch` nor `Response`, so each test installs a `fetch` that answers
+   * with the two things the caller actually reads: whether it went well, and the body.
+   */
+  function serverAnswers(status: number, body: unknown) {
+    const fetchImpl = jest.fn(async () => ({
+      ok: status >= 200 && status < 300,
+      status,
+      json: async () => body,
+    })) as unknown as jest.MockedFunction<typeof fetch>;
+
+    Object.defineProperty(globalThis, "fetch", { value: fetchImpl, configurable: true, writable: true });
+    return fetchImpl;
+  }
+
+  afterEach(() => {
+    Reflect.deleteProperty(globalThis, "fetch");
+  });
+
+  function withCode(draft = "call the bank tomorrow") {
+    return memoryStore({ [DRAFT_KEY]: draft, [ACCESS_CODE_KEY]: "open-sesame" });
+  }
+
+  it("says who did the sorting", async () => {
+    serverAnswers(200, { proposal: claudeProposal });
+    const { user } = render({ store: withCode() });
+
+    await sortIt(user);
+
+    expect(screen.getByText("Sorted by Claude.")).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Keep task “call the bank about the loan”" })).toBeInTheDocument();
+  });
+
+  it("adds what Claude proposed, once you say so", async () => {
+    serverAnswers(200, { proposal: claudeProposal });
+    const store = withCode();
+    const { user } = render({ store });
+
+    await sortIt(user);
+    await user.click(screen.getByRole("button", { name: "Add 1 project and 2 tasks" }));
+
+    expect(savedWorkspace(store).tasks.map((task) => task.title)).toEqual([
+      "call the bank about the loan",
+      "pick a hosting plan",
+    ]);
+  });
+
+  it("falls back to the rules and says why", async () => {
+    serverAnswers(401, { error: "wrong-code" });
+    const { user } = render({ store: withCode() });
+
+    await sortIt(user);
+
+    expect(screen.getByText("Sorted with rules, on this device.")).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("That access code isn't right");
+    // Still a usable proposal, from the rules.
+    expect(screen.getByRole("checkbox", { name: "Keep task “call the bank”" })).toBeInTheDocument();
+  });
+
+  it("never calls the server without an access code", async () => {
+    const fetchImpl = serverAnswers(200, { proposal: claudeProposal });
+    const { user } = render({ store: memoryStore({ [DRAFT_KEY]: "call the bank tomorrow" }) });
+
+    await sortIt(user);
+
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(screen.getByText("Sorted with rules, on this device.")).toBeInTheDocument();
+  });
+
+  it("keeps the access code in this browser and says what sorting will do", async () => {
+    const store = memoryStore();
+    const { user } = render({ store });
+
+    expect(screen.getByText("Sorting: rules only")).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText("Access code"), "open-sesame");
+
+    expect(store.read(ACCESS_CODE_KEY)).toBe("open-sesame");
+    expect(screen.getByText("Sorting: Claude, with rules as a fallback")).toBeInTheDocument();
   });
 });

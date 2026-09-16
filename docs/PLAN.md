@@ -75,7 +75,7 @@ Three kinds of record. In v1, each one becomes a database table.
 
 ## Blocks
 
-**Progress:** Block 1 ✅ ([notes](blocks/block-1.md)) · Block 2 ✅ ([notes](blocks/block-2.md)) · Block 3 ✅ ([notes](blocks/block-3.md)) · Block 4 ✅ ([notes](blocks/block-4.md))
+**Progress:** Block 1 ✅ ([notes](blocks/block-1.md)) · Block 2 ✅ ([notes](blocks/block-2.md)) · Block 3 ✅ ([notes](blocks/block-3.md)) · Block 4 ✅ ([notes](blocks/block-4.md)) · Block 5 ✅ ([notes](blocks/block-5.md))
 
 | # | Block | What we build | What you learn | How Jest checks it |
 |---|---|---|---|---|
@@ -117,8 +117,8 @@ Website relaunch:             → a project (reused if one with that name exists
 | Name | **Tipon**. Also considered: **Buo** (*whole*; *buuin* = to put together) | Block 1 (repo and URL) | ✅ default kept when Block 1 started |
 | Look and feel | Notebook on a desk | Block 2 | ✅ built in Block 2 |
 | Where data lives in v0 | This device only, with Export and Import. Accounts and sync come in v1 | Block 3 | ✅ built in Block 3 |
-| AI in v0 | Yes, in Block 5. If not, AI moves to v1 and Block 5 becomes Search + a "This week" view | Block 5 | 🟡 |
-| AI model | Claude Opus 5 | Block 5 | 🟡 |
+| AI in v0 | Yes, in Block 5. If not, AI moves to v1 and Block 5 becomes Search + a "This week" view | Block 5 | ✅ built in Block 5 |
+| AI model | Claude Opus 5 | Block 5 | ✅ `claude-opus-5`, effort `low` |
 | Removing projects | Archive only, with unarchive to undo it. Tasks can be deleted | Block 1 | ✅ built in Block 1 |
 
 ## Known limits of v0 (on purpose)

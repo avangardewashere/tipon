@@ -4,29 +4,45 @@ import { useState } from "react";
 import { ReviewSheet } from "./ReviewSheet";
 import { keepEverything, toActions, type Kept } from "@/lib/dump/commit";
 import { isEmptyProposal, type Proposal } from "@/lib/dump/proposal";
-import { parseDump } from "@/lib/dump/quickParser";
-import { useDraft } from "@/lib/dump/useDraft";
+import { sortDump } from "@/lib/dump/sortDump";
+import { ACCESS_CODE_KEY, DRAFT_KEY, useSavedText } from "@/lib/dump/useSavedText";
 import { dayKeyFromDate, todayKey } from "@/lib/dates/calendar";
 import { useWorkspace } from "@/lib/workspace/store";
 import type { Dump } from "@/lib/workspace/types";
+import type { SortOutcome } from "@/lib/dump/sortDump";
 
 /** What was added last time, so pressing Add tells you it worked. */
 type Added = Readonly<{ projects: number; tasks: number }>;
 
 export function DumpScreen() {
   const { workspace, store, now, createId, runAll } = useWorkspace();
-  const { draft, setDraft, clearDraft } = useDraft(store);
+  const { text: draft, setText: setDraft, clearText: clearDraft } = useSavedText(store, DRAFT_KEY);
+  const { text: accessCode, setText: setAccessCode } = useSavedText(store, ACCESS_CODE_KEY);
   const [proposal, setProposal] = useState<Proposal | null>(null);
   const [kept, setKept] = useState<Kept>({ projectKeys: new Set(), taskKeys: new Set() });
   const [added, setAdded] = useState<Added | null>(null);
+  const [sorting, setSorting] = useState(false);
+  const [sortedBy, setSortedBy] = useState<SortOutcome | null>(null);
 
-  function onSort() {
-    const found = parseDump(draft, { today: todayKey(now()), projects: workspace.projects });
+  async function onSort() {
     setAdded(null);
-    if (isEmptyProposal(found)) return;
+    setSorting(true);
 
-    setProposal(found);
-    setKept(keepEverything(found));
+    // Claude when there's an access code, the rules otherwise — and the rules again
+    // whenever Claude can't help. `sortDump` decides; this screen only draws the answer.
+    const outcome = await sortDump({
+      text: draft,
+      today: todayKey(now()),
+      projects: workspace.projects,
+      accessCode,
+    });
+    setSorting(false);
+
+    setSortedBy(outcome);
+    if (isEmptyProposal(outcome.proposal)) return;
+
+    setProposal(outcome.proposal);
+    setKept(keepEverything(outcome.proposal));
   }
 
   function onCommit() {
@@ -48,6 +64,8 @@ export function DumpScreen() {
       <ReviewSheet
         proposal={proposal}
         kept={kept}
+        source={sortedBy?.source ?? "rules"}
+        problem={sortedBy?.problem ?? null}
         projects={workspace.projects}
         onToggleProject={(key) => setKept((current) => ({ ...current, projectKeys: toggle(current.projectKeys, key) }))}
         onToggleTask={(key) => setKept((current) => ({ ...current, taskKeys: toggle(current.taskKeys, key) }))}
@@ -103,10 +121,10 @@ export function DumpScreen() {
           <button
             type="button"
             onClick={onSort}
-            disabled={draft.trim() === ""}
+            disabled={draft.trim() === "" || sorting}
             className="border-b-2 border-highlight py-1 text-sm font-semibold disabled:opacity-50"
           >
-            Sort it
+            {sorting ? "Sorting…" : "Sort it"}
           </button>
           {draft !== "" && (
             <button type="button" onClick={clearDraft} className="py-1 text-sm text-ink-soft underline">
@@ -115,6 +133,11 @@ export function DumpScreen() {
           )}
           <span className="text-sm text-ink-faint">Kept as you type.</span>
         </div>
+        {sortedBy !== null && proposal === null && sortedBy.problem !== null && (
+          <p role="alert" className="text-sm text-danger">
+            {sortedBy.problem}
+          </p>
+        )}
         {added !== null && (
           <p role="status" className="text-sm text-ink-soft">
             Added {describe(added)}.
@@ -122,8 +145,40 @@ export function DumpScreen() {
         )}
       </div>
 
+      <AccessCode value={accessCode} onChange={setAccessCode} />
+
       {workspace.dumps.length > 0 && <DumpHistory dumps={workspace.dumps} />}
     </div>
+  );
+}
+
+/**
+ * Without a code, Tipon never calls the server at all — no key needed, no money spent.
+ * With one, the same dump goes to Claude, and the rules wait behind it as a fallback.
+ */
+function AccessCode({ value, onChange }: Readonly<{ value: string; onChange: (code: string) => void }>) {
+  return (
+    <details className="border-t border-rule pt-4 text-sm">
+      <summary className="cursor-pointer text-ink-soft">
+        Sorting: {value.trim() === "" ? "rules only" : "Claude, with rules as a fallback"}
+      </summary>
+      <div className="space-y-2 pt-3">
+        <label className="block text-ink-soft">
+          <span className="block pb-1">Access code</span>
+          <input
+            type="password"
+            value={value}
+            onChange={(event) => onChange(event.target.value)}
+            autoComplete="off"
+            className="w-full max-w-xs border-b border-rule bg-transparent py-1 text-base text-ink outline-none focus:border-ink"
+          />
+        </label>
+        <p className="text-ink-faint">
+          With a code, dumps are sent to Claude, which reads them better than rules can — and costs a few cents each.
+          Without one, Tipon sorts everything on this device for nothing. The code is kept in this browser only.
+        </p>
+      </div>
+    </details>
   );
 }
 
