@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+import { NewVersionNotice } from "./NewVersionNotice";
 import { SHORTCUTS } from "@/lib/shortcuts/shortcuts";
 import { useShortcuts } from "@/lib/shortcuts/useShortcuts";
 
@@ -48,6 +49,7 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
         <div className="mx-auto w-full max-w-2xl">
           {children}
           <footer className="space-y-1 pt-12 text-sm text-ink-faint">
+            <NewVersionNotice />
             <p>
               Saved in this browser only ·{" "}
               <Link href="/backup" className="underline">
