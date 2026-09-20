@@ -105,19 +105,43 @@ describe("saveWorkspace", () => {
 
 describe("importText", () => {
   it("replaces what's saved and keeps the old copy", () => {
-    const store = memoryStore({ [SAVE_KEY]: serializeSaveFile(toSaveFile({ projects: [], tasks: [], dumps: [] }, 10)) });
+    const older: Workspace = {
+      dumps: [],
+      projects: [{ id: "p-old", name: "Last year", notes: "", status: "active", createdAt: 1, updatedAt: 1 }],
+      tasks: [],
+    };
+    const store = memoryStore({ [SAVE_KEY]: serializeSaveFile(toSaveFile(older, 10)) });
 
     const outcome = importText(store, exportText(workspace, 900), NOW);
 
     expect(outcome).toEqual({ ok: true, workspace, keptAs: `${KEPT_PREFIX}${NOW}` });
     expect(loadWorkspace(store, NOW)).toMatchObject({ status: "loaded", workspace });
-    expect(store.read(`${KEPT_PREFIX}${NOW}`)).toContain('"projects": []');
+    expect(store.read(`${KEPT_PREFIX}${NOW}`)).toContain('"Last year"');
   });
 
   it("has nothing to keep when the browser was empty", () => {
     const outcome = importText(memoryStore(), exportText(workspace, 900), NOW);
 
     expect(outcome).toEqual({ ok: true, workspace, keptAs: null });
+  });
+
+  it("has nothing to keep when the only thing saved is an empty notebook", () => {
+    // Opening Tipon writes one of these before you've typed anything.
+    const store = memoryStore({ [SAVE_KEY]: serializeSaveFile(toSaveFile({ projects: [], tasks: [], dumps: [] }, 10)) });
+
+    const outcome = importText(store, exportText(workspace, 900), NOW);
+
+    expect(outcome).toEqual({ ok: true, workspace, keptAs: null });
+    expect(keptCopies(store)).toEqual([]);
+  });
+
+  it("still keeps a copy of a file it couldn't read", () => {
+    const store = memoryStore({ [SAVE_KEY]: "{ not a backup" });
+
+    const outcome = importText(store, exportText(workspace, 900), NOW);
+
+    expect(outcome).toEqual({ ok: true, workspace, keptAs: `${KEPT_PREFIX}${NOW}` });
+    expect(store.read(`${KEPT_PREFIX}${NOW}`)).toBe("{ not a backup");
   });
 
   it("changes nothing when the file is no good", () => {

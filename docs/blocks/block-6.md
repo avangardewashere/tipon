@@ -1,6 +1,6 @@
 # Block 6: Today + v0 release
 
-**Status:** ✅ done · 497 tests passing (72 new) · the app is finished for v0 · the `v0` tag is the one step left, and it belongs on the default branch
+**Status:** ✅ done · 499 tests passing (74 new) · the app is finished for v0 · the `v0` tag is the one step left, and it belongs on the default branch
 
 ## What we built
 
@@ -120,10 +120,32 @@ Driven in real Chromium against `npm run dev`:
 | Browser console | ✅ no errors or warnings |
 | `npm run lint`, `npm run typecheck`, `npm run build`, `npm test` | ✅ |
 
+## The release pass, run again on the production build
+
+`npm run build` + `npm start`, not `npm run dev` — the first time anything had been driven against
+the real bundle. It found one bug, the sixth the browser has caught that Jest didn't:
+
+**Importing into a fresh browser claimed to keep a copy of nothing.** Opening Tipon writes an empty
+save file before you've typed a word, so `importText` saw a file under `SAVE_KEY` and dutifully
+kept it aside — telling a first-time user *"What was here before was kept as …"* when nothing had
+been there, and leaving a junk copy on their Backup screen. Now a current file that parses **and
+holds nothing** is dropped instead of copied; anything we can't read is still kept, because a file
+we don't understand might be someone's notebook. The old test seeded an empty file and asserted the
+copy, so it encoded the bug — it now seeds a real project, and two new tests pin both halves.
+
+| Check, against the production bundle | Result |
+|---|---|
+| Dump → sort → add, then refresh | ✅ the task is still there |
+| `/backup` → Export → import into a fresh browser profile | ✅ "Imported. There was nothing here before." |
+| 375 px on `/`, `/dump`, `/projects`, `/inbox`, `/backup` | ✅ no sideways overflow anywhere |
+| Browser console, every page | ✅ silent |
+
 ## What's left to call it released
 
-1. Merge this branch into the default branch.
+1. ~~Merge this branch into the default branch.~~ Done: `09ee603`.
 2. `git tag -a v0 -m "Tipon v0: dump, projects, tasks, today"` and push the tag (`docs/RELEASE.md`).
+   **Must be done from a normal checkout** — the agent session that wrote this couldn't: its egress
+   relay answers `git-receive-pack` with a bare 403 for `refs/tags/*` while branch pushes succeed.
 3. Import the repo into Vercel, or redeploy if it's already there.
 4. Add `ANTHROPIC_API_KEY` and `TIPON_ACCESS_CODE` in Vercel **only** if you want Claude sorting
    dumps — and set a spend limit in the Console first.
