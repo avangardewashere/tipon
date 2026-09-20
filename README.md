@@ -116,4 +116,5 @@ the only environment variables are the two above, and the app works without them
 - [docs/blocks/](docs/blocks/) — notes on each block: what was built, what was learned, the bugs that
   were planted to prove the tests work, and what was deliberately left out
 - [docs/RELEASE.md](docs/RELEASE.md) — the checklist for cutting a release
-- [docs/booking/PLAN.md](docs/booking/PLAN.md) — the next app in the series: Laan, a booking system, planned version by version
+- [docs/booking/](docs/booking/) — the next app in the series: Laan, a booking system. `PLAN.md` is v0 in full,
+  `ROADMAP.md` every version after it. Both move to the `laan` repository once it exists

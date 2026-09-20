@@ -1,196 +1,423 @@
-# Laan: the plan, version by version
+# Laan: v0 plan
 
 > **Laan** (Tagalog, from *ilaan*) means *to set aside, to reserve*. Tagline: **Set the time aside.**
-> A booking system for a one-person service business — a personal trainer, a barber, a massage
-> therapist, a tutor, a clinic with one doctor — built the way Tipon was: small blocks, every one of
-> them tested and live.
-
-This is the fourth app in the series after Habibit, Sipat and Tipon. It lives here until its own
-repository exists; then this file becomes that repo's `docs/PLAN.md` and the later versions get their
-own `PLAN-v1.md`, `PLAN-v2.md` and so on, the way Tipon's `PLAN-v0.5.md` did.
-
-## Why a booking system
-
-Two things Tipon never had to face, and this app can't avoid:
-
-1. **Other people use it.** A client books through a link, and the trainer sees it. That means a
-   server that's always on, one source of truth, and two people who can want the same slot at the
-   same second.
-2. **Time is the whole product.** Tipon stored days. Laan stores *instants*: 3:00 pm for a trainer in
-   Manila is 11:00 pm the night before for a client in Los Angeles, and a wrong answer here is a
-   missed appointment, not a task in the wrong column.
-
-Both are what the versions are built around. v0 gets the time right with no server. v1 adds the
-server and the link. Everything after that is a business feature on top of a base that's already
-proven.
-
-The running example in this document is **a personal trainer with a small studio**. Nothing in the
-design is trainer-specific; the same app books haircuts.
-
-## The versions
-
-| Version | Name | One line | The new hard thing |
-|---|---|---|---|
-| **v0** | The appointment book | The trainer's diary, on their phone. Services, hours, bookings entered by hand, no server, no account | Time zones and slot arithmetic. The booking engine as a pure reducer |
-| **v0.5** | On the home screen | Installable, opens with no signal. The same Progressive Web App work as Tipon v0.5 | Service workers, the update prompt, durable storage — a second time, to make it stick |
-| **v1** | The booking link | A database and a public page. Clients pick a slot and book; the trainer gets an email. One provider, protected by a passcode | Postgres, migrations, and **the race**: two clients, one slot, one winner |
-| **v1.5** | Reminders and no-shows | Reminder emails the day before; cancel and reschedule from the email; no-show marked in one tap; a waitlist for full days | Scheduled jobs, signed links, and the first AI feature: paste a Messenger thread, get a proposed booking |
-| **v2** | Many providers | Accounts. Every provider gets `/book/[handle]`. The v0 backup and the v1 data import cleanly | Authentication done properly, and row-level ownership: nobody ever sees another provider's clients |
-| **v2.5** | Money | A deposit at booking, GCash and cards through PayMongo (Stripe abroad). A no-show policy. A ledger | Webhooks, idempotency, and never trusting the browser with an amount |
-| **v3** | Classes and teams | Group sessions with a capacity; more than one staff member; recurring bookings; Google Calendar sync | Capacity instead of exclusivity, and syncing with a calendar you don't own |
-
-v0 through v1 is the app. v2 onward is what would make it something other trainers would pay for.
-That's deliberately far down the list: a product with paying customers needs the base underneath it
-to have been boring for a while.
-
-## Look and feel: "the appointment book"
-
-A paper diary with a time ruler down the side, in the same warm-paper family as Tipon so the two
-feel like they came from the same desk.
-
-- **Day page:** a ruler from the first working hour to the last, bookings as blocks on it, free time
-  left blank. Gaps are visible, which is the point of a diary.
-- **Week strip:** seven small columns across the top of the day page; tap one to jump.
-- **Colour:** one colour per service, chosen from a fixed set of six. Today's line is the highlighter.
-- **Phone first, thumb first:** the trainer is between sessions, phone in one hand. Every action that
-  happens ten times a day (mark done, mark no-show, add a walk-in) is one tap from the day page.
-- **Colours are CSS variables from day one.** Dark mode is a later change, not a rewrite.
-
-Two other directions, if this one doesn't feel right:
-
-| Direction | Feels like |
-|---|---|
-| Front desk | A dense grid, every day visible at once, keyboard-first. For a receptionist with a monitor |
-| Card stack | Each booking a card, swipe to mark done. Friendly, less information per screen |
-
-## How we work (same as Tipon)
-
-- **Small blocks.** Each one does one thing and ends with a working, deployed app.
-- **Jest checks everything.** No manual QA. A block is done when `npm test` passes locally and in CI.
-- **Stop after each block.** Notes in `docs/blocks/block-N.md`: what was built, ideas to take away,
-  the planted bugs that proved the tests work, what was checked in a real browser, known limits, and
-  what is deliberately not in the block.
-- **Every decision has a default and a deadline.** The tables below say what we'll do if nobody
-  objects, and the block before which it must be settled.
-
-## Stack
-
-| Piece | Choice | Why |
-|---|---|---|
-| Framework | Next.js 16 (App Router) + React 19 | Same as Tipon. Read `node_modules/next/dist/docs/` before writing code — it differs from older guides |
-| Styling | Tailwind CSS 4 | Same as before |
-| Language | TypeScript | Same as before |
-| Tests | Jest 30 + React Testing Library | Same as before. Two test files run in `America/New_York` this time, not just Asia/Manila — see Block 1 |
-| Validation | Zod | Save files, imports, and from v1 on, every request body |
-| Dates | The platform: `Intl.DateTimeFormat` and `Temporal` if Node 24 exposes it stable, else a tiny wrapper of our own | Deciding this is Block 1's first job. No `moment`, no `date-fns-tz` unless the platform can't do it |
-| Database (v1) | Postgres on Neon's free tier, through Drizzle ORM | A real database, SQL you can read, migrations as files in the repo |
-| Email (v1) | Resend, free tier | One API call, and a test mode that doesn't send |
-| Payments (v2.5) | PayMongo for GCash, Maya and Philippine cards; Stripe for everywhere else | Decided at v2.5, not before |
-| CI | GitHub Actions | Lint, typecheck, tests and build on every push |
-| Hosting | Vercel (free tier) | Same as before. Cron for v1.5 reminders |
-
----
-
-# v0: the appointment book
+> A booking system for a one-person service business. This document is v0 in full. The versions
+> after it are sketched in [ROADMAP.md](ROADMAP.md).
 
 ## Goal
 
-Take a trainer from a paper diary to Laan on their phone, with nothing to sign up for. They add their
-services and their hours once. Then, every time a client messages them, they open the day, tap a free
-slot, and type a name. The app refuses double bookings, shows the gaps, and knows what today looks
-like.
+Take a trainer from a paper diary to Laan on their phone, with nothing to sign up for.
 
-No clients touch it yet. No server. That's v1.
+They add their services and their hours once. Then, every time a client messages them, they open
+the day, tap a free slot, type a name, and paste a confirmation back into the chat. The app refuses
+double bookings, shows the gaps, and knows what today looks like.
+
+No clients touch it in v0. No server. Both are v1. What v0 has to get right is **time**: a booking is
+an instant, hours are wall-clock, and the function that turns one into the other has to be correct on
+the two days a year when the clocks change.
+
+## Who it's for, in one scene
+
+Ren runs a small strength studio, alone. Bookings come in over Messenger, all day, in half-sentences.
+Ren keeps them in a paper diary and in their head, and about once a month two people turn up at three.
+
+With Laan v0: a message arrives, Ren opens Tuesday, sees the gap at three, taps it, picks *Strength
+session*, starts typing "Ju…", picks Juan from last week, and taps Book. Then **Copy confirmation**,
+paste, send. Twelve seconds, and Tuesday at three is taken for anyone else who asks.
+
+That scene is the whole of v0. Every block is a piece of it.
+
+## Look and feel: "the appointment book"
+
+A paper diary with a time ruler down the side, in the same warm-paper family as Tipon.
+
+| Page | Route | What it's for |
+|---|---|---|
+| **Today** | `/` | What's next, who's coming, the gaps, yesterday's unmarked bookings, this week's count |
+| **Day** | `/day/[date]` | The ruler. Bookings as blocks, free time blank, tap a gap to book. A week strip on top |
+| **Clients** | `/clients`, `/clients/[id]` | Everyone who has ever booked, with their history, notes and no-show count |
+| **Services** | `/services` | What can be booked: name, minutes, buffer, price, colour |
+| **Hours** | `/hours` | Windows per weekday, and days off |
+| **Backup** | `/backup` | Export and Import as a JSON file |
+
+- **Phone first, thumb first.** The trainer is between sessions with a phone in one hand. A bottom bar
+  holds **Today · Day · Clients**. Services, Hours and Backup sit behind a *More* item; they're set up
+  once and rarely opened again. On desktop the same six are a slim left rail.
+- **The ruler is the interface.** A block's height is its minutes. A 60-minute booking is twice a
+  30-minute one. Buffers show as a hatched tail. The current time is a thin highlighter line.
+- **Colour:** one of six fixed service colours per service, warm paper behind, ink text. The colours
+  are CSS variables from day one, so dark mode is a later change, not a rewrite.
+- **Type:** a serif for headings, a clean sans-serif for everything else. Same as Tipon.
+- **Keyboard on desktop:** <kbd>T</kbd> <kbd>D</kbd> <kbd>C</kbd> <kbd>S</kbd> <kbd>H</kbd> <kbd>B</kbd>
+  jump to pages; <kbd>[</kbd> and <kbd>]</kbd> move a day back or forward on the Day page. Never
+  while typing.
+
+## How we work (same as Tipon)
+
+- **Six small blocks.** Each one does one thing and ends with a working, deployed app.
+- **Jest checks everything.** A block is done when `npm test` passes locally and in CI.
+- **Stop after each block.** Notes go in `docs/blocks/block-N.md`: what was built, ideas to take
+  away, the bugs planted to prove the tests work, what was checked in a real browser, known limits,
+  and what was deliberately left out.
+- **Two time zones in every run.** `Asia/Manila` (UTC+8, never changes) and `America/New_York`
+  (changes twice a year). The environments are in `src/test/`.
+
+## Stack
+
+Already in the repo. Next.js 16 (App Router), React 19, Tailwind 4, TypeScript, Jest 30 + Testing
+Library, Zod, GitHub Actions, Vercel. Read `node_modules/next/dist/docs/` before writing code.
+
+**One decision is open: the date library.** Default is the platform — `Intl.DateTimeFormat` with
+`formatToParts` to go from an instant to wall-clock parts in a zone, and a small function of our own
+to go the other way. `Temporal` is used if Node 24 and the browsers we target ship it unflagged; if
+not, the wrapper stays small enough to read in one sitting. No `moment`, no `date-fns-tz`, no
+`luxon`, unless Block 1 proves the platform can't do it. It's the first hour of Block 1.
 
 ## The data in v0
 
+```ts
+type Instant  = string;   // ISO 8601 in UTC, "2026-10-20T07:00:00.000Z". Sorts as a string.
+type DayKey   = string;   // "YYYY-MM-DD", a calendar day in the provider's time zone
+type WallTime = string;   // "HH:MM", 24-hour, in the provider's time zone
+type Minutes  = number;   // whole, positive
+
+Settings  timeZone: string (IANA, "Asia/Manila") · slotStep: 15 | 30 | 60 · minNoticeMinutes · maxDaysAhead
+Service   id · name · minutes · bufferMinutes · price: number | null (integer centavos) · colour: 1–6 · status: active | archived · createdAt · updatedAt
+Hours     Record<Weekday 0–6, Window[]>   where   Window = { start: WallTime, end: WallTime }
+DayOff    day: DayKey · reason: string
+Client    id · name · phone: string | null (canonical, see Block 4) · email: string | null · notes · status: active | archived · createdAt · updatedAt
+Booking   id · serviceId · clientId · startsAt: Instant · endsAt: Instant · status: booked | done | cancelled | no-show · note · override: boolean · createdAt · updatedAt
+Workspace settings · services · hours · daysOff · clients · bookings
 ```
-Settings  timeZone (IANA, e.g. Asia/Manila) · slotStep (15 | 30 | 60 minutes) · minNoticeMinutes · maxDaysAhead
-Service   id · name · minutes · bufferMinutes · price (integer centavos, optional) · colour (1–6) · status (active | archived)
-Hours     weekday (0–6) → windows [{ start "HH:MM", end "HH:MM" }] in the provider's time zone
-DayOff    day (YYYY-MM-DD) · reason
-Client    id · name · phone (optional) · email (optional) · notes · createdAt · updatedAt
-Booking   id · serviceId · clientId · startsAt (ISO instant) · endsAt (ISO instant) · status (booked | done | cancelled | no-show) · note · createdAt · updatedAt
+
+Six kinds of record and one bag that holds them. In v1 each becomes a table.
+
+### Time: instants for bookings, wall-clock for hours
+
+A booking at 3:00 pm on 20 October in Manila is `2026-10-20T07:00:00.000Z`. That's a fixed moment. If
+the trainer moves to Sydney and changes `timeZone`, the booking is still that moment, and the diary
+shows it at 6:00 pm, which is right: the client in Manila is still coming at three.
+
+Hours are `09:00`–`18:00` on Mondays. That's *not* a fixed moment; it's "nine in the morning wherever
+the studio is". Move to Sydney and Monday still opens at nine. So hours are strings, resolved to
+instants only when a specific day is being looked at.
+
+The function that does the resolving is the heart of Block 1:
+
+```
+wallToInstant(day: DayKey, time: WallTime, zone) → Instant
+instantToWall(instant, zone) → { day: DayKey, time: WallTime, weekday }
 ```
 
-Six kinds of record. In v1, each one becomes a table, and `Settings` becomes a row per provider.
+And the two edge cases, which only exist in zones that change their clocks:
 
-**The rule that shapes everything: a booking is an instant, hours are wall-clock.** `startsAt` is a
-UTC instant, because 3:00 pm today in Manila is a fixed moment in history. Hours are `"09:00"` to
-`"18:00"` on Mondays, because that means "nine in the morning wherever the studio is" and must survive
-a trainer moving cities. Turning one into the other, correctly, on a day the clocks change, is Block 1.
+| Case | Example, `America/New_York` | What we do |
+|---|---|---|
+| The time doesn't exist | 8 March 2026, `02:30` (the clocks jump from 01:59 to 03:00) | Resolve to the **next instant that does exist**, 03:00. A window `02:00–04:00` is one hour long that day |
+| The time exists twice | 1 November 2026, `01:30` (the clocks go back from 01:59 to 01:00) | Resolve to the **first** occurrence, and **never offer a slot whose wall-clock time is ambiguous**: a confirmation that says "1:30 am" would mean two different moments. A window `01:00–04:00` is four real hours that day, and only `02:00` onward is bookable |
 
-## The rules the engine enforces
+Manila has neither case, ever. That's why it can't be the only zone tested.
+
+### `freeSlots`: the function everything calls
+
+```
+freeSlots(workspace, serviceId, day: DayKey, now: Instant) → Instant[]
+```
+
+The instants a booking for that service could start on that day. Every screen calls it, and in v1
+the public page and the API call the same function. It has to be pure, fast, and right.
+
+1. If `day` is a day off, or the service is archived, return `[]`.
+2. Take the windows for `day`'s weekday. For each, resolve `start` and `end` to instants with the
+   rules above.
+3. Walk from `start` in steps of `slotStep`. Each candidate `t` is a slot if:
+   - `[t, t + service.minutes)` sits inside the window (the buffer may spill past closing time; it's
+     clean-up, not a session);
+   - `[t, t + minutes + buffer)` doesn't intersect `[b.startsAt, b.endsAt + bufferOf(b))` for any
+     booking `b` that isn't cancelled. Touching is fine; one minute of overlap isn't;
+   - `t ≥ now + minNoticeMinutes`;
+   - `day ≤ today(now, zone) + maxDaysAhead`.
+4. Return them in order.
+
+`bufferOf(b)` is the buffer of `b`'s service *as it is now*. A service whose buffer grows pushes
+neighbouring slots out; that's the intended reading. A service whose `minutes` change does **not**
+move existing bookings, because `endsAt` is stored, not computed.
+
+### The rules the engine enforces
 
 | Rule | Detail |
 |---|---|
-| No overlap | A booking's `[startsAt, endsAt + buffer)` may not intersect any other booking's, unless one is cancelled |
-| Inside hours | A booking must sit entirely inside one of that weekday's windows, in the provider's time zone |
-| Not a day off | A booking may not start on a day off |
-| Not in the past | A new booking must start at least `minNoticeMinutes` after `now`. Moving one has the same rule |
-| Not too far ahead | No further than `maxDaysAhead` days from today |
-| End follows start | `endsAt` is always `startsAt + service.minutes`. It's stored, not computed, because a service can change its length later and existing bookings must not move |
-| Cancel, never delete | A booking changes status to `cancelled`. It stays in the client's history. Only a service or client that has no bookings can be deleted; the rest archive |
-| Done and no-show are final-ish | Both can be reverted to `booked` — a mis-tap is common between sessions — but only on the same day |
+| No overlap | As in `freeSlots`, and checked again on `booking/add` and `booking/move`, because a screen can be stale |
+| Inside hours | The booking sits inside one window of that weekday. **Overridable** |
+| Not a day off | **Overridable** |
+| Not in the past | At least `minNoticeMinutes` after `now`. Applies to adding and moving. Not overridable in v0 (a walk-in "now" is handled by `minNoticeMinutes: 0`) |
+| Not too far ahead | No further than `maxDaysAhead`. **Overridable** |
+| End follows start | `endsAt = startsAt + service.minutes`, set by the reducer, never by the caller |
+| Cancel, never delete | Bookings only change status. A client or service with any booking, cancelled included, can only archive |
+| Done and no-show can be undone | Both revert to `booked`, but only while it's still the same calendar day in the provider's zone. A mis-tap between sessions is common; rewriting last month isn't allowed |
+| An archived service can't be booked | Existing bookings keep it, and keep its colour |
+| Client names are trimmed, notes are kept as typed | Same as Tipon |
 
-The trainer can **override** "inside hours" and "not a day off" for a booking they enter by hand
-(a client who begged for a Sunday). Clients booking through the link in v1 never can. The engine
-takes an `override` flag; the UI decides who gets to set it.
+The `override` flag is on the action and stored on the booking, so the Day page can mark a booking
+that sits outside the hours. Clients booking through the link in v1 will never be able to set it.
+
+### The action list, which becomes the v1 API
+
+```
+settings/set        timeZone, slotStep, minNoticeMinutes, maxDaysAhead (each optional; all or nothing)
+service/add         ──► service/edit ──► service/archive ⇄ service/unarchive        service/delete (no bookings only)
+hours/setWindows    weekday, windows[]  (sorted, non-overlapping, start < end, on the slot grid)
+dayOff/add          ⇄ dayOff/remove
+client/add          ──► client/edit ──► client/archive ⇄ client/unarchive           client/delete (no bookings only)
+booking/add         ──► booking/move ──► booking/cancel
+                        booking/done ⇄ booking/reopen · booking/noShow ⇄ booking/reopen
+```
+
+Every action carries its own `id` and `now`. The reducer never calls `crypto.randomUUID()` or
+`Date.now()`. When an action is refused or changes nothing, the reducer returns **the same object it
+was given**, and tests check that with `toBe`. Every type is `readonly`, and one test deep-freezes a
+workspace and runs every kind of action against it.
 
 ## Blocks
 
+**Progress:** Block 1 ⬜ · Block 2 ⬜ · Block 3 ⬜ · Block 4 ⬜ · Block 5 ⬜ · Block 6 ⬜
+
 | # | Block | What we build | What you learn | How Jest checks it |
 |---|---|---|---|---|
-| 1 | **Skeleton + booking engine** | Next.js app, Jest, CI, live on Vercel on day one. Then all the logic and no screens: settings, services, hours, days off, clients, and bookings, through one reducer. `freeSlots(day)` — the function the whole app is built on | Instants vs wall-clock time. Slot arithmetic. The reducer never reads the clock or invents an id. Table tests by the dozen | Overlaps at every edge (touching is fine, one minute over isn't); buffers; the same rules in `Asia/Manila` and `America/New_York` **on the DST-change days**; a 30-minute slot step never offers 9:15; the reducer returns the same object when it refuses |
-| 2 | **Day and week screens** | App shell in the chosen look. `/day/[date]` with the time ruler and booking blocks; the week strip; a Services page; an Hours page with per-weekday windows and days off. Data in memory, so a refresh wipes it | Rendering time as layout: a block's height is its minutes. Dynamic routes. One provider, many components that only draw | Testing Library: a 60-minute booking is twice the height of a 30-minute one; the ruler starts at the first window; an empty day says so; the week strip jumps |
-| 3 | **Saved on this device** | Storage behind an interface (localStorage in the app, a `Map` in tests); a versioned save file checked with Zod; Export and Import as JSON | Same lesson as Tipon Block 3, second time round — which is when it becomes a habit. Lift Tipon's storage module as a starting point and note what changes | Round trip; a corrupted file, an unknown version or a bad import keeps a copy and says so; nothing is wiped silently |
-| 4 | **Booking by hand** | Tap a gap on the day page → the new-booking sheet, showing only slots the engine allows for the chosen service. Client picker that reuses an existing client by name or phone. Cancel, move, mark done, mark no-show. The override switch for out-of-hours bookings | Forms that can only submit valid states, because the choices offered were already filtered. Undo for the two most common mis-taps | The sheet never offers a taken slot; picking a longer service hides slots that no longer fit; "Juan" and "juan " are the same client; a no-show reverted after midnight is refused |
-| 5 | **Share the booking** | For any booking: **Copy confirmation** puts a ready-to-paste message on the clipboard ("Hi Juan — Tuesday 21 Oct, 3:00–4:00 pm, Strength session, Studio B"), in the client's language of choice per client; and **Add to calendar** downloads an `.ics` file. Both in the client's time zone if it differs from the studio's | Generating files in the browser; the iCalendar format; the same instant rendered in two time zones side by side; templates that a trainer can edit | The exact text, in `Asia/Manila` and for a client in `Australia/Sydney`; the `.ics` has `DTSTART` in UTC and a stable `UID` so re-importing updates instead of duplicating |
-| 6 | **Today + v0 release** | The Today page: what's next, who's coming, the gaps, this morning's no-show to mark, the week's count and revenue if prices are set. Keyboard shortcuts on desktop, first-run welcome, the phone-width pass, README, tag `v0` | Derived data, again: nothing on Today is stored. What "shipped" means when the user is a person with a business, not you | Today at 11:59 pm and 12:01 am in Manila; a cancelled booking never counts; revenue ignores no-shows unless the policy says otherwise (a v2.5 question — v0 ignores them); shortcuts don't fire while typing |
+| 1 | **Booking engine** | Time functions, `freeSlots`, the types, the rules, the reducer. No screens | Instants vs wall-clock. Slot arithmetic on the days the clocks change. A reducer with no clock in it | See below. The biggest test file in the app |
+| 2 | **Day and week** | App shell, Day page with the ruler, week strip, Services page, Hours page. Data in memory | Rendering time as layout. Dynamic routes. One provider owns the state; screens only draw and dispatch | Heights, the ruler's range, empty days, the strip, forms that refuse bad hours |
+| 3 | **Saved on this device** | Storage behind an interface, a versioned save file, Export and Import | Hydration, validating what you load, versioning data so v1 can migrate it | Round trips; nothing is wiped silently |
+| 4 | **Booking by hand** | Tap a gap → the booking sheet; client matching; Clients pages; cancel, move, done, no-show, undo; the override switch | Forms that can only submit valid states; matching messy phone numbers; undo with a deadline | The sheet never offers a taken slot; "Juan" is "juan "; reverting after midnight is refused |
+| 5 | **Share the booking** | Copy confirmation (English and Tagalog, per client, in the client's zone); Add to calendar (`.ics`) | Generating files in the browser; iCalendar; one instant rendered in two zones | Exact text; a valid `.ics` with a stable `UID` |
+| 6 | **Today + release** | Today page, shortcuts, welcome, phone pass, README, tag `v0` | Derived data; what "shipped" means for someone running a business on it | Today across midnight in Manila; cancelled never counts; shortcuts don't fire while typing |
 
-### Block 1 in more detail, because it carries the rest
+### Block 1 — Booking engine
 
-`freeSlots(workspace, serviceId, day, now)` returns the list of instants a booking for that service
-could start on that day. It is the one function every screen and, later, the public page and the
-API will call. It has to be pure, fast, and right on the days the clocks change.
+**Files.**
 
-The test that matters most: **a 09:00–17:00 Sunday in `America/New_York` on 8 March 2026** — the
-day that skips 2:00 am — offers the right number of slots, and none of them lands on a time that
-doesn't exist. Then the same on 1 November, the day that has two 1:30 ams. Manila never changes
-clocks; that's why it can't be the only zone tested.
+| File | What it is |
+|---|---|
+| `src/lib/time/wall.ts` | `wallToInstant`, `instantToWall`, `dayKeyOf`, `addDays`, the DST rules above |
+| `src/lib/time/wall.test.ts` | Runs in New York. Also `wall.manila.test.ts` at UTC+8 |
+| `src/lib/booking/types.ts` | Every type above, `emptyWorkspace`, `WEEKDAYS` |
+| `src/lib/booking/rules.ts` | `findOverlap`, `isInsideHours`, `findWindowsProblem`, `findServiceNameProblem`, `canonicalPhone` (used in Block 4, written here) |
+| `src/lib/booking/freeSlots.ts` | The function above |
+| `src/lib/booking/reducer.ts` | `BookingAction` and `bookingReducer` |
+| `src/lib/booking/selectors.ts` | `bookingsOn(day)`, `activeServices`, `clientById`, sorted and memo-friendly |
 
-The action list, which becomes the v1 API:
+**Tests that matter most.**
+
+- A `09:00–17:00` Sunday in `America/New_York`: on **7 March 2026** the first slot is `14:00Z`
+  (9:00 am EST); on **8 March 2026** it's `13:00Z` (9:00 am EDT). A fixed-offset calculation gets one
+  of the two wrong. 15 slots each day at a 30-minute step for a 60-minute service.
+- A `01:00–04:00` window across the change. **8 March**: two real hours (1:00–1:59 EST, then
+  3:00–3:59 EDT), three slots, and none of them reads `2:30`. **1 November**: four real hours, but
+  only `2:00`, `2:30` and `3:00` are offered; nothing between 1:00 and 2:00, because those times
+  happen twice.
+- Overlap at every edge: a booking `15:00–16:00` with a 10-minute buffer blocks `15:30`, `16:00` and
+  `16:05`, and allows `16:10` and `14:00`. Touching is allowed; one minute isn't.
+- A 30-minute step never offers `09:15`. A 15-minute step does.
+- A cancelled booking frees its slot. A no-show doesn't (they might still turn up late — v0 decision,
+  see the table).
+- `minNoticeMinutes: 60` at `14:30` hides `15:00` and offers `15:30`.
+- Windows: `09:00–12:00, 13:00–18:00` is fine; `09:00–12:00, 11:00–18:00` is refused; `18:00–09:00`
+  is refused; `09:10–12:00` is refused on a 30-minute step.
+- `booking/add` with a stale slot (taken since the screen was drawn) is refused, same object back.
+- Every action against a deep-frozen workspace.
+
+**Planted bugs.** Off-by-one in overlap (`<=` for `<`); `endsAt` computed from the *current* service
+minutes on move; forgetting to exclude cancelled bookings; DST handled by adding 24 hours to get
+"tomorrow". Each one must turn a test red before it's fixed.
+
+**Deliberately not in Block 1:** screens, storage, ids from anywhere but the action.
+
+### Block 2 — Day and week
+
+**Files.** `src/components/shell/AppShell.tsx` (bottom bar and rail), `src/lib/booking/store.tsx`
+(one provider, `useWorkspace`, `useDispatch` with a helper that stamps `id` and `now` onto actions),
+`src/components/day/DayScreen.tsx`, `Ruler.tsx`, `BookingBlock.tsx`, `WeekStrip.tsx`,
+`src/components/services/ServicesScreen.tsx`, `ServiceForm.tsx`,
+`src/components/hours/HoursScreen.tsx`, `WindowsEditor.tsx`, `DaysOff.tsx`. Routes: `/day/[date]`,
+`/services`, `/hours`. The home page redirects to today's Day page until Block 6.
+
+**The ruler.** Starts at the first window's start and ends at the last window's end for that weekday,
+rounded outward to the hour; a day with no windows shows 08:00–18:00 and says "No hours on Sundays".
+One pixel per minute at phone width, so a 60-minute block is 60 px tall and the whole 9-to-6 day is a
+comfortable scroll. Bookings are absolutely positioned by `instantToWall(startsAt).time`. Overlaps
+can't happen (the engine refuses them), so there's no column layout to build.
+
+**`[date]` is a DayKey.** A bad one (`2026-02-30`, `hello`) shows a small "That's not a day" page
+with a link to today, not a crash. Next 16's typed routes and `notFound()`; check the docs.
+
+**Tests.** A 60-minute block is twice the height of a 30-minute one; the ruler's range follows the
+windows; an empty day says so; the strip jumps and marks today; the service form refuses a blank name,
+a duplicate, 0 minutes, and a price with decimals typed as `150.5` (it's centavos, stored as `15050`);
+the windows editor refuses overlaps and shows the reason from `findWindowsProblem`.
+
+**Deliberately not in Block 2:** booking anything. Tapping a gap does nothing yet. Persistence.
+
+### Block 3 — Saved on this device
+
+Tipon's Block 3, second time round. Lift `src/lib/storage/` from Tipon as the starting point and
+write down what changed.
+
+- `Storage` interface: `load(): string | null`, `save(text)`, `keep(name, text)`, `listKept()`.
+  `localStorage` in the app, a `Map` in tests.
+- Save file: `{ version: 1, savedAt: Instant, workspace }`, checked with Zod on every load. The
+  schema is strict about shapes and permissive about unknown keys, so a v0.1 file loads in v0.
+- Anything unreadable is copied to `laan.kept.<savedAt or now>` and listed on `/backup` with the
+  reason. Nothing is thrown away quietly.
+- Export writes the same file with a `laan-2026-10-20.json` name. Import runs the same validation,
+  then asks: **replace** the current diary (the current one is kept aside first) or **cancel**.
+  Merging is not offered; two diaries with the same slot booked twice is not a problem worth having.
+- Two tabs: Tipon found the 183-writes bug in a real browser. Bring its fix (remember what's on
+  disk, don't write it again) and its tests from day one.
+- Hydration: the first render must match the server's, which has no `localStorage`. A `WorkspaceGate`
+  shows nothing until the client has loaded, same pattern as Tipon.
+
+**Tests.** Round trip; a corrupted file, an unknown version and a bad import each keep a copy and say
+so; import replaces and keeps the old one; two tabs converge without a write storm (count the writes).
+
+### Block 4 — Booking by hand
+
+The scene from the top of this document, built.
+
+**The booking sheet.** Tap a gap on the Day page: a sheet slides up with the tapped time already
+chosen. Pick a service; the time list re-filters to `freeSlots` for that service (a longer service
+hides slots it no longer fits in). Type a client name or phone; matches appear from the third
+character; pick one or keep typing to create a new client. Optional note. **Book.** If the slot was
+taken meanwhile (another tab), the sheet says so and re-filters instead of failing silently.
+
+**Client matching.** By canonical phone first, then by name, trimmed and case-folded.
 
 ```
-Settings  set (timeZone, slotStep, notice, horizon)
-Service   add ──► edit ──► archive ⇄ unarchive           delete (only if no bookings)
-Hours     setWindows (weekday) · addDayOff ⇄ removeDayOff
-Client    add ──► edit ──► archive ⇄ unarchive           delete (only if no bookings)
-Booking   add ──► move ──► cancel · done ⇄ booked · no-show ⇄ booked
+canonicalPhone("0917 123 4567")   → "+639171234567"
+canonicalPhone("+63 917-123-4567") → "+639171234567"
+canonicalPhone("09171234567")      → "+639171234567"
+canonicalPhone("+1 212 555 0100")  → "+12125550100"
+canonicalPhone("juan")             → null
 ```
 
-Every action carries its own `id` and `now`. Same actions in, same workspace out.
+Digits only; a leading `0` followed by ten digits is a Philippine mobile number and becomes `+63…`;
+a leading `63` becomes `+63`; anything else with 7–15 digits keeps its digits behind a `+`. The
+default country is a v0 constant, not a setting, and it's the Philippines. Stored canonical, shown
+as typed the first time (`displayPhone` formats `+63…` back to `0917 123 4567`).
 
-### Before Block 1, you'll need
+**The client pages.** `/clients` lists active clients by name with their next booking and a no-show
+count. `/clients/[id]` shows notes, phone, email, and every booking newest first, with status. Archive
+from here.
 
-- To choose the date library (default: the platform, see Stack). Spend an hour with
-  `Intl.DateTimeFormat(...).formatToParts` and `Temporal` in Node 24 and decide.
-- A Vercel project. Nothing else; v0 has no keys and no accounts.
+**Managing a booking.** Tap a block on the Day page: a sheet with the client, service, time, note, and
+four actions — **Done**, **No-show**, **Move** (opens the slot list for that service, on any day),
+**Cancel** (asks once). Done and No-show show an **Undo** for the rest of that day, as the engine
+allows.
+
+**Override.** A switch on the booking sheet, off by default: *Outside my hours*. When on, the slot
+list also offers times outside the windows and on days off, on the grid, marked. The booking is drawn
+with a dotted outline on the Day page. The switch never appears in the v1 public page.
+
+**Tests.** The sheet never offers a taken slot; changing the service re-filters; the third character
+shows matches; a phone typed three ways finds the same client; booking a stale slot shows the message
+and doesn't dispatch; Undo after midnight in Manila is not offered and the action is refused; the
+override switch adds out-of-hours slots and marks the booking.
+
+**Deliberately not in Block 4:** recurring bookings, a client booking themselves, any notification.
+
+### Block 5 — Share the booking
+
+Bookings in this business are confirmed in a chat, and that stays true after v1. So v0 makes the
+confirmation a one-tap paste, and the calendar entry a one-tap download.
+
+**Copy confirmation.** On the booking sheet. Builds a message from a template and puts it on the
+clipboard with `navigator.clipboard.writeText`; a fallback shows the text selected for a long press
+where the clipboard API isn't available.
+
+```
+Hi Juan! Confirmed: Strength session
+Tuesday 20 October, 3:00–4:00 pm (Manila time)
+See you at the studio.
+```
+
+- Two templates, English and Tagalog, chosen **per client** (a field on `Client`, default English).
+  The trainer can edit both templates on `/services` (they're per provider, not per service; the
+  page is just where setup lives). Placeholders: `{name}`, `{service}`, `{day}`, `{time}`, `{zone}`,
+  `{studio}`.
+- If the client has a `timeZone` set (optional field, Block 5 adds it), the time is rendered in
+  theirs, and the studio's is added in brackets. Two zones, one instant, side by side. This is the
+  one place in v0 where the instant-based design pays off visibly.
+
+**Add to calendar.** Downloads `laan-<id>.ics`:
+
+```
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Laan//v0//EN
+METHOD:PUBLISH
+BEGIN:VEVENT
+UID:booking-<id>@laan
+DTSTAMP:<now, UTC>
+DTSTART:20261020T070000Z
+DTEND:20261020T080000Z
+SEQUENCE:<number of moves>
+SUMMARY:Strength session — Juan
+DESCRIPTION:<the note>
+END:VEVENT
+END:VCALENDAR
+```
+
+`DTSTART` in UTC, so every calendar app shows it at the right local hour. A stable `UID`, so
+importing the file again after a move **updates** the event instead of duplicating it; `SEQUENCE`
+counts moves for the same reason (one more field on `Booking`, incremented by `booking/move`). Lines
+end in CRLF and fold at 75 octets, because that's the spec and Google Calendar is strict about it.
+
+**Tests.** The exact English and Tagalog text for a Manila client; the same booking for a client in
+`Australia/Sydney` shows `6:00–7:00 pm (Sydney time, 3:00 pm in Manila)`; the `.ics` line by line;
+folding on a long note; `SEQUENCE` goes up on move; the clipboard is a fake and the text is asserted.
+
+**Deliberately not in Block 5:** sending anything. No email, no SMS, no Messenger API. v1 and v1.5.
+
+### Block 6 — Today, and the v0 release
+
+**Today** (`/`), computed by one pure function `buildToday(workspace, now)`:
+
+| Section | What's in it |
+|---|---|
+| **Now / Next** | The booking in progress, or the next one today, with the client, the time, and how long until it |
+| **Today** | Every booking today in order, each with Done and No-show buttons where you stand |
+| **Gaps** | Free stretches today long enough for the shortest active service |
+| **Did they come?** | Yesterday's bookings still marked `booked`. Two taps clears the list, and the no-show counts stay honest |
+| **This week** | Bookings this week (Mon–Sun in the provider's zone), and revenue if prices are set: done bookings only, at the price the service has now |
+
+Then the release pass: keyboard shortcuts, a first-run welcome that leaves once there's a service,
+the phone-width pass on every page, the README rewritten for what was actually built,
+`docs/RELEASE.md` run top to bottom, tag `v0`.
+
+**Tests.** Today at 11:59 pm and 12:01 am in Manila; a booking at 11:30 pm–12:30 am belongs to the
+day it starts; cancelled bookings never count anywhere; "Did they come?" is empty when yesterday was
+a day off; revenue ignores no-shows and cancellations; shortcuts don't fire in an input, a textarea,
+or with a modifier held.
 
 ## Decisions
 
 | Decision | Default | Decide before | Status |
 |---|---|---|---|
-| Name | **Laan**. Also considered: **Tipan** (*tipanan* = an appointment), **Takda** (*to set a time*) | Block 1 (repo and URL) | ⬜ |
-| Look and feel | The appointment book | Block 2 | ⬜ |
-| Date library | The platform. A wrapper of our own only if it can't do it | Block 1 | ⬜ |
-| How time is stored | Bookings as UTC instants; hours as wall-clock strings plus one time zone in Settings | Block 1 | ⬜ |
-| Slot step | 30 minutes by default; 15 and 60 available in Settings | Block 1 | ⬜ |
-| Buffers | Per service, after the booking only. A before-buffer can come if a real trainer asks | Block 1 | ⬜ |
-| Removing bookings | Cancel only. Services and clients archive, and delete only when nothing references them | Block 1 | ⬜ |
-| Prices in v0 | Optional, integer centavos, shown on Today as a weekly total. No invoicing | Block 1 | ⬜ |
-| AI in v0 | **No.** The first AI feature is v1.5's "paste a chat" proposal, when there's a review sheet worth building | Block 4 | ⬜ |
-| Client languages | Confirmation text in English and Tagalog templates, per client | Block 5 | ⬜ |
+| Name | **Laan**. Also considered: **Tipan** (*tipanan* = an appointment), **Takda** (*to set a time*) | Now (the repo) | ⬜ |
+| Look and feel | The appointment book. Alternatives in the roadmap: *Front desk*, *Card stack* | Block 2 | ⬜ |
+| Date library | The platform. A wrapper of our own only if it can't do it | Block 1, first hour | ⬜ |
+| How time is stored | Bookings as UTC instants; hours as wall-clock strings; one `timeZone` in Settings | Block 1 | ⬜ |
+| Nonexistent and repeated wall-clock times | Next existing instant; first occurrence | Block 1 | ⬜ |
+| Slot step | 30 minutes by default; 15 and 60 in Settings. Windows must sit on the grid | Block 1 | ⬜ |
+| Buffers | Per service, after the booking only. May spill past closing time | Block 1 | ⬜ |
+| A no-show's slot | Stays taken. They might be late; the trainer can cancel it to free the time | Block 1 | ⬜ |
+| Removing bookings | Cancel only. Services and clients archive; delete only with no bookings | Block 1 | ⬜ |
+| Undo for Done and No-show | Same calendar day only | Block 1 | ⬜ |
+| Prices | Optional, integer centavos, one currency (₱) in v0. Revenue on Today from done bookings at today's price | Block 1 | ⬜ |
+| Phone numbers | Canonical E.164-style strings; default country Philippines; matching by phone before name | Block 4 | ⬜ |
+| Import | Replace, keeping the old diary aside. No merge | Block 3 | ⬜ |
+| Confirmation languages | English and Tagalog templates, chosen per client | Block 5 | ⬜ |
+| Client time zone | Optional per client, used only for the confirmation text | Block 5 | ⬜ |
+| AI in v0 | **No.** Paste-a-chat comes in v1.5 with a review sheet worth building | — | ⬜ |
+| Where the code lives | Its own repository, `laan`, sibling of `tipon` | Now | ⬜ |
 
 ## Known limits of v0 (on purpose)
 
@@ -198,22 +425,23 @@ Every action carries its own `id` and `now`. Same actions in, same workspace out
 |---|---|---|
 | Clients can't book themselves | No server | v1 |
 | The phone and the PC are two diaries | Saved per browser | Export/Import; v1 makes the server the truth |
-| Clearing browser data erases the diary | Same | Keep a backup; v0.5 asks for durable storage; v1 fixes it |
-| No reminders | Nothing runs when the app is closed | v1.5 |
-| One provider, one location | By design | v2 for providers, v3 for staff |
+| Clearing browser data erases the diary | Same | Keep a backup; v0.5 asks for durable storage |
+| No reminders, no messages sent | Nothing runs when the app is closed; no server to send from | v1 for confirmations, v1.5 for reminders |
+| One provider, one location, one currency | By design | v2, v3 |
+| The override can't bypass "not in the past" | Backdating a booking that happened is a record-keeping feature, not a booking one | Revisit if a trainer asks |
 
 ## Deliberately NOT in v0
 
 | Not yet | Comes in |
 |---|---|
-| A public booking page, a database | v1 |
+| A public booking page, a database, accounts | v1, v2 |
 | Emails of any kind | v1 (confirmations), v1.5 (reminders) |
-| Accounts | v2 |
 | Payments, deposits, no-show fees | v2.5 |
 | Group classes, a second trainer, recurring bookings, Google Calendar | v3 |
 | AI | v1.5 |
-| Dark mode | After v0, the colours are already variables |
-| Rooms and equipment as bookable resources | Not planned. If a studio needs it, it's a v3 question |
+| Dark mode | After v0; the colours are already variables |
+| Search across clients and notes | After v0 |
+| Rooms and equipment as bookable resources | Not planned |
 
 ## How we'll know v0 worked
 
@@ -221,169 +449,22 @@ Every action carries its own `id` and `now`. Same actions in, same workspace out
 2. The app refuses a double booking and an out-of-hours booking, and lets the override through when asked.
 3. A confirmation pasted into Messenger reads like a person wrote it, and the `.ics` opens in Google Calendar at the right hour.
 4. Export on the phone, import on a PC: the same week.
-5. The four commands (`lint`, `typecheck`, `test`, `build`) green in CI, and the DST tests among them.
-
----
-
-# v0.5: on the home screen
-
-**Goal.** Installable, opens with no signal, keeps the diary. The plan is Tipon's `PLAN-v0.5.md`
-almost line for line, and doing it a second time is the point: a service worker written once is a
-trick, written twice is a skill.
-
-| Block | What it delivers |
-|---|---|
-| 7. Installable | `app/manifest.ts`, icons including a maskable one, durable storage, iOS install guidance |
-| 8. Works with no signal | The service worker with the strategy function tested on its own; the "new version — reload" prompt; never `skipWaiting()` behind the user's back |
-| 9. Release | The offline checks added to the release list, tag `v0.5` |
-
-**What's different from Tipon.** Nothing in v0 needs the network, so there's no "honest offline"
-screen to build. That makes v0.5 shorter here. Keep it that way.
-
-**Could be skipped** if v1 is more urgent: the diary's real safety comes from the database in v1,
-not from durable storage. Default: do it, because it's small and the trainer's phone is the client
-from the first day.
-
----
-
-# v1: the booking link
-
-**Goal.** A client opens `laan.app/book`, picks a service, a day and a slot, types their name and
-phone, and taps Book. The trainer gets an email and sees the booking on the day page. Two clients
-who want the same slot get one booking and one honest "just taken" message. Still one provider,
-who signs in with a passcode.
-
-This is the version where the data leaves the phone. The v0 reducer's action list becomes the API,
-and every action that exists as a function today becomes a Server Action or a Route Handler with the
-same name and the same tests, plus a database underneath.
-
-## Blocks
-
-| # | Block | What we build | What you learn | How Jest checks it |
-|---|---|---|---|---|
-| 10 | **Database + the import** | Drizzle schema from the v0 types; migrations in the repo; a repository interface with two implementations, Postgres and in-memory; the v0 backup imports into the database | Migrations as code review; the repository seam so most tests never touch Postgres; a real database on your laptop with one command | The in-memory repository passes the same suite as Postgres (run against a local Postgres in CI); a v0 backup imports and re-exports identical |
-| 11 | **The provider signs in** | A passcode in the environment, a signed session cookie, and a request filter in `proxy.ts` (Next 16's name for middleware — check the docs) that keeps `/day`, `/services` and the rest behind it. Rate-limited | Sessions without a user table; signing and verifying; what a cookie must and must not contain | A wrong code is refused and counted; a tampered cookie is a stranger; the public `/book` page needs no cookie |
-| 12 | **The public page** | `/book`: services → a month of days with free ones marked → the slots → name and phone → confirm. Slots come from the same `freeSlots` as v0, in the client's own time zone with the studio's shown beside it | Server components for the read path; the client's time zone from the browser; forms that survive a slow connection | The slot list matches `freeSlots`; a service with no free days says so; the whole flow with Testing Library |
-| 13 | **The race** | Booking is one transaction, and the database is the referee: a `tstzrange` exclusion constraint on `(provider, [startsAt, endsAt + buffer))` for non-cancelled bookings. The app checks first for a friendly message; the constraint decides for real | Why the check in code is not enough; what an exclusion constraint is; how to test a race deterministically | Two inserts for one slot, run in parallel against local Postgres: exactly one succeeds, every time, a hundred runs |
-| 14 | **Emails + release** | Confirmation to the client and the trainer through Resend, with the `.ics` attached; a honeypot and rate limit on `/book`; the release list grows a section for the server; tag `v1` | Sending email from a server without becoming a spammer; what to log and what never to log (phone numbers) | The email body from Block 5's template; Resend is mocked; the honeypot catches a bot; the rate limit holds |
-
-## Decisions to take before v1
-
-| Decision | Default | Decide before |
-|---|---|---|
-| Database | Neon Postgres, free tier, Drizzle ORM | Block 10 |
-| The v0 data | Imported once from a backup, then the server is the truth. No two-way sync, ever | Block 10 |
-| Provider auth in v1 | A passcode, like Tipon's access code. Accounts are v2 | Block 11 |
-| Client identity | None. Name and phone on every booking, matched to a client record by phone | Block 12 |
-| What a client can do after booking | Nothing yet. Cancel and reschedule links are v1.5 | Block 12 |
-| Double-booking protection | The database constraint, not just the code | Block 13 |
-| Email provider | Resend | Block 14 |
-
-## Deliberately NOT in v1
-
-| Not yet | Comes in |
-|---|---|
-| Reminders, cancel/reschedule links, waitlist | v1.5 |
-| More than one provider, real accounts | v2 |
-| Deposits | v2.5 |
-| SMS | Not planned until a trainer says email isn't enough. In the Philippines that may come fast — Viber and Messenger are where bookings actually happen — so the v0 copy-and-paste confirmation stays even after v1 |
-
----
-
-# v1.5: reminders and no-shows
-
-**Goal.** Fewer no-shows. A reminder the day before, a link to cancel or move without messaging the
-trainer, and a waitlist that fills a cancelled slot. Plus the first AI feature, because by now there
-are enough half-sentence Messenger threads ("pwede bukas 3pm? or thurs") to make "paste it, review
-it, book it" worth building.
-
-| # | Block | What we build |
-|---|---|---|
-| 15 | **Reminders** | A Vercel Cron route runs every hour, finds bookings starting in 20–28 hours that have no reminder sent, sends one, records it. Idempotent: run it twice, one email |
-| 16 | **Cancel and move from the email** | Signed, expiring links. Cancel needs a confirmation page, not a `GET` that acts. Moving shows the same slots as `/book`. Both respect a per-service cancellation notice (default 12 hours) |
-| 17 | **No-shows and the waitlist** | Mark no-show from Today in one tap. A client's no-show count on their card. A "tell me if a slot opens" button on a full day; a cancellation emails the first person waiting with a link that holds the slot for 30 minutes |
-| 18 | **Paste a chat** | The Tipon pattern, propose → review → commit: paste a message thread, Claude proposes a booking (service, day, time, client), the trainer checks the sheet and confirms. The rules-only fallback handles "tomorrow 3pm". Same access-code guard as Tipon; the key never leaves the server |
-
-**Decisions before v1.5:** the reminder window (default 24 hours, one reminder); whether a
-cancellation inside the notice period is allowed at all (default: allowed, but flagged on the
-client's card, and v2.5 can charge for it); the Claude model and a spend limit.
-
----
-
-# v2: many providers
-
-**Goal.** Laan stops being one trainer's app. Anyone signs up, sets their hours, and gets
-`/book/[handle]`. This is the version where a second trainer, a barber, or a physio could use it,
-and the first version that could be sold.
-
-| # | Block | What we build |
-|---|---|---|
-| 19 | **Accounts** | Magic-link sign-in by email (no passwords to lose), with Auth.js or a small implementation of our own — decide by reading both. A `providers` table; every other table gets a `providerId` |
-| 20 | **Ownership everywhere** | Every query is scoped by provider, and one test proves it: provider A's session, provider B's booking id, a `404`. Row-level security in Postgres as a second lock |
-| 21 | **Handles and the public page** | `/book/[handle]`; a settings page for the handle, the studio name, the address, a logo. The v1 provider migrates into the first account |
-| 22 | **Release** | Terms and a privacy note (you hold other people's clients' phone numbers now); a data-export per provider; delete-my-account that really deletes; tag `v2` |
-
-**Decisions before v2:** the auth library; whether handles can change (default: once); which
-country's data rules to read first (the Philippines' Data Privacy Act, since that's where the first
-users are).
-
-**About money.** v2 is where a pricing question first makes sense, and the answer is written down
-here so it doesn't get decided by accident later: free for one provider with one staff member,
-forever. Paid tiers, if ever, come with v2.5 and v3 features. Don't build billing before there's
-someone to bill.
-
----
-
-# v2.5: money
-
-**Goal.** A deposit at booking, so a no-show costs the client and not the trainer. The most
-sensitive code in the app, and the reason it comes after everything else has been steady for a while.
-
-| # | Block | What we build |
-|---|---|---|
-| 23 | **A ledger before a payment** | A `payments` table that records intent, status and provider reference, written before any call to a payment provider. Amounts are integers in the smallest unit. Every state change is a new row, never an update |
-| 24 | **PayMongo** | GCash, Maya and cards. Checkout created on the server with the amount from the *service*, never from the form. The webhook verifies its signature, is idempotent by event id, and is the only thing that marks a payment paid |
-| 25 | **Policies** | Per service: deposit amount, refund on cancel before the notice period, keep it after. Refunds through the provider's API, recorded in the ledger. A no-show is a kept deposit, and the reason is on the client's card |
-| 26 | **Release** | Reconciliation: a page that lists the ledger against the provider's dashboard totals; a sandbox run of every path; tag `v2.5` |
-
-**Decisions before v2.5:** PayMongo or Stripe first (default PayMongo, because GCash); whether
-deposits are optional per service (default yes); how refunds are timed.
-
----
-
-# v3: classes and teams
-
-**Goal.** A slot that holds ten people, a studio with three trainers, a client who comes every
-Tuesday, and a trainer who lives in Google Calendar.
-
-| # | Block | What we build | The new idea |
-|---|---|---|---|
-| 27 | **Classes** | A service with a capacity. Bookings against a *session* rather than a slot. The exclusion constraint from v1 becomes a count check inside the same transaction | Capacity, not exclusivity |
-| 28 | **Staff** | Providers have staff; each staff member has their own hours; a service can be done by some of them; `/book/[handle]` asks "with whom?" or "anyone" | Availability as a union |
-| 29 | **Recurring bookings** | "Every Tuesday at 3 for eight weeks" as one action that creates eight bookings and refuses cleanly if week five is taken | Batches that succeed or fail together |
-| 30 | **Google Calendar** | One-way first: every booking appears in the trainer's Google Calendar. Two-way (a Google event blocks a slot) only if one-way has been quiet for a month | Syncing with a system you don't control |
-
----
+5. `npm run lint`, `npm run typecheck`, `npm test`, `npm run build` green in CI, with the New York tests among them.
 
 ## Rules carried over from Habibit, Sipat and Tipon
 
-- **Every write goes through one reducer**, and from v1, every reducer action is an API call with the
-  same name.
+- **Every write goes through one reducer.** Its action list becomes the v1 API.
 - **The reducer never reads the clock or invents an id.** Both are passed in.
-- **Derived data is computed, not stored.** "Free" is asked each time, never written down.
-- **Swappable parts sit behind interfaces:** storage in v0, the repository in v1, the mail sender,
-  the payment provider, the calendar. In tests, every one of them is a fake.
-- **Test in a time zone that changes its clocks.** Manila keeps you honest about UTC+8; New York keeps
-  you honest about DST. Both, every run.
-- **Nothing is deleted quietly.** Bookings cancel; records archive; imports keep copies.
+- **Derived data is computed, not stored.** "Free" and "next" are asked each time.
+- **Day keys use local calendar parts in the provider's zone**, never `toISOString()`.
+- **Swappable parts sit behind interfaces:** storage in Block 3, the clipboard in Block 5.
 - **A component either draws something or runs an effect**, not both.
 - **Test devices:** Android and desktop Chrome must pass. iOS should work but never blocks a release.
 - **Next.js 16 differs from older guides.** Read `node_modules/next/dist/docs/` before writing code.
 
-## Two new rules for this app
+## Two rules new to this app
 
-- **Phone numbers are personal data.** They never go in logs, error messages, URLs or test fixtures
-  that look real. Fixtures use `0900 000 0001` and the like.
-- **The database is the last line of defence, and it's tested as one.** Every rule the code enforces
-  about time and money has a constraint underneath it, and a test that breaks the code's check to
-  prove the constraint still holds.
+- **Phone numbers are personal data.** Never in logs, error messages, URLs, or fixtures that look
+  real. Fixtures use `0900 000 0001` and the like.
+- **The rules are checked twice.** `freeSlots` filters what a screen offers, and the reducer refuses
+  what a stale screen sends anyway. In v1 the database becomes the third check.
