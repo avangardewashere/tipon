@@ -30,7 +30,7 @@ Then, once, in a real browser against `npm run dev`:
 v0 is tagged on the default branch, after the last block's pull request is merged:
 
 ```bash
-git checkout main && git pull
+git checkout master && git pull
 git tag -a v0 -m "Tipon v0: dump, projects, tasks, today"
 git push origin v0
 ```
