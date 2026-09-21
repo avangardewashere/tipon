@@ -15,7 +15,9 @@ npm run build
 
 All five must pass on a clean checkout. CI runs the same five on every push.
 
-Then, once, in a real browser against `npm run dev`:
+Then, once, in a real browser against **`npm run build` + `npm start`** — not `npm run dev`.
+The service worker is off in development, and a production build is where the last two bugs
+were found:
 
 | Check | Why it's on the list |
 |---|---|
@@ -24,6 +26,14 @@ Then, once, in a real browser against `npm run dev`:
 | Open two tabs, add a project in one, look at the other | Two tabs used to overwrite each other |
 | Phone width (375 px) on every page | Android is a supported device |
 | The browser console | A warning here is a bug you haven't found yet |
+| **Airplane mode, then reload** | The cold start is the whole point of the service worker |
+| **Offline: sort a dump and add it** | The rules never needed a network; only Claude does |
+| **Offline: the banner appears, and goes when the network returns** | A stuck banner is its own bug |
+| **DevTools → Application → Manifest** | Installable, with no icon warnings |
+| **Deploy, then reload a page that's already open** | The "newer version" line should appear and work |
+
+And on a phone, once per release: **add it to the home screen and open it from there.** No amount
+of desktop checking substitutes for that one.
 
 ## Tagging
 

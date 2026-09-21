@@ -1,6 +1,15 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  experimental: {
+    /**
+     * Connectivity detection for `useOffline`. Worth the experimental flag: it listens
+     * for the browser's offline event *and* polls with HEAD requests, so it doesn't
+     * believe `navigator.onLine`, which happily reports true on a captive portal.
+     */
+    useOffline: true,
+  },
+
   async headers() {
     return [
       {

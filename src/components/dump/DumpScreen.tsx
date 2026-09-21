@@ -1,5 +1,6 @@
 "use client";
 
+import { useOffline } from "next/offline";
 import { useState } from "react";
 import { ReviewSheet } from "./ReviewSheet";
 import { keepEverything, toActions, type Kept } from "@/lib/dump/commit";
@@ -23,6 +24,7 @@ export function DumpScreen() {
   const [added, setAdded] = useState<Added | null>(null);
   const [sorting, setSorting] = useState(false);
   const [sortedBy, setSortedBy] = useState<SortOutcome | null>(null);
+  const offline = useOffline();
 
   async function onSort() {
     setAdded(null);
@@ -35,6 +37,7 @@ export function DumpScreen() {
       today: todayKey(now()),
       projects: workspace.projects,
       accessCode,
+      offline,
     });
     setSorting(false);
 
@@ -133,6 +136,15 @@ export function DumpScreen() {
           )}
           <span className="text-sm text-ink-faint">Kept as you type.</span>
         </div>
+        {/*
+          Only worth saying when Claude was on the table: with no access code the rules
+          are what "Sort it" always meant, and nothing about being offline changes it.
+        */}
+        {offline && accessCode.trim() !== "" && (
+          <p role="status" className="text-sm text-ink-soft">
+            No signal, so Tipon will sort this with its own rules. Claude needs a connection.
+          </p>
+        )}
         {sortedBy !== null && proposal === null && sortedBy.problem !== null && (
           <p role="alert" className="text-sm text-danger">
             {sortedBy.problem}

@@ -40,11 +40,13 @@ The last two are the hard ones. The rest is configuration.
 
 ## Blocks
 
-| Block | What it delivers |
-|---|---|
-| **7. Installable** | `app/manifest.ts`, the icon set, durable storage, install guidance for iOS |
-| **8. Works with no signal** | The service worker, the cache strategy, and the update prompt |
-| **9. Honest offline + release** | The Claude path offline, the connectivity banner, release pass, tag `v0.5` |
+| Block | What it delivers | |
+|---|---|---|
+| **7. Installable** | `app/manifest.ts`, the icon set, durable storage, install guidance for iOS | ✅ |
+| **8. Works with no signal** | The service worker, the cache strategy, and the update prompt | ✅ |
+| **9. Honest offline + release** | The Claude path offline, the connectivity banner, release pass, tag `v0.5` | ✅ built; the tag is the one step left |
+
+Notes for each: [block-7](blocks/block-7.md), [block-8](blocks/block-8.md), [block-9](blocks/block-9.md).
 
 ### Block 7 — Installable
 
@@ -121,13 +123,13 @@ One screen in Tipon genuinely needs the network: the Claude dump. Offline it mus
 
 ## Decisions
 
-| Decision | Default | Decide before |
+| Decision | Default | Decided |
 |---|---|---|
-| Service worker: Serwist or hand-rolled | **Hand-rolled**, with the strategy function tested separately | Block 8 |
-| Update policy | Prompt to reload; never `skipWaiting()` behind the user's back | Block 8 |
-| `experimental.useOffline` | **Use it**, and fall back to `online`/`offline` events if it bites | Block 9 |
-| Durable storage | Ask on first run, never nag again, work fine if refused | Block 7 |
-| iOS install | Instructions, not a custom button — `beforeinstallprompt` doesn't exist on Safari | Block 7 |
+| Service worker: Serwist or hand-rolled | **Hand-rolled** | ✅ Hand-rolled, and with no TypeScript twin at all: the tests load `public/sw.js` itself |
+| Update policy | Prompt to reload; never `skipWaiting()` behind the user's back | ✅ As planned, verified against a real deploy |
+| `experimental.useOffline` | **Use it**, and fall back to `online`/`offline` events if it bites | ✅ Used. It didn't bite |
+| Durable storage | Ask on first run, never nag again, work fine if refused | ✅ As planned. Headless Chromium refuses, and that's fine |
+| iOS install | Instructions, not a custom button | ✅ README only |
 
 ## Deliberately NOT in v0.5
 

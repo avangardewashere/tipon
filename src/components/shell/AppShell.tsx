@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { NewVersionNotice } from "./NewVersionNotice";
+import { OfflineBanner } from "./OfflineBanner";
 import { SHORTCUTS } from "@/lib/shortcuts/shortcuts";
 import { useShortcuts } from "@/lib/shortcuts/useShortcuts";
 
@@ -45,8 +46,10 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
         </ul>
       </nav>
 
-      <main className="order-1 flex-1 px-5 py-8 sm:order-2 sm:px-10">
-        <div className="mx-auto w-full max-w-2xl">
+      <main className="order-1 flex-1 sm:order-2">
+        {/* Full width, above everything: losing the network is about the whole app. */}
+        <OfflineBanner />
+        <div className="mx-auto w-full max-w-2xl px-5 py-8 sm:px-10">
           {children}
           <footer className="space-y-1 pt-12 text-sm text-ink-faint">
             <NewVersionNotice />

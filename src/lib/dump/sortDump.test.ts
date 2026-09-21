@@ -105,6 +105,30 @@ describe("sortDump", () => {
     expect(outcome.problem).toContain("couldn't be reached");
   });
 
+  /**
+   * The same thrown fetch means two different things. "You're offline" is a fact about
+   * the room; "Claude couldn't be reached" is a fact about the server. Telling someone
+   * the wrong one sends them off to debug something that isn't broken.
+   */
+  it("blames the missing network, not the server, when the app knows it's offline", async () => {
+    const fetchImpl = jest.fn(async () => {
+      throw new TypeError("Failed to fetch");
+    }) as unknown as typeof fetch;
+
+    const outcome = await sort({ fetchImpl, offline: true });
+
+    expect(outcome.source).toBe("rules");
+    expect(outcome.problem).toContain("You're offline");
+    expect(outcome.problem).not.toContain("couldn't be reached");
+  });
+
+  it("still blames the server when a reply comes back wrong while online", async () => {
+    // Offline is about reaching the server at all, not about what it said.
+    const outcome = await sort({ fetchImpl: replyWith(502, { error: "upstream" }), offline: true });
+
+    expect(outcome.problem).toContain("couldn't be reached");
+  });
+
   it.each([
     ["it isn't a proposal at all", { hello: "world" }],
     ["a task has no title", { proposal: { projects: [], tasks: [{ key: "t1", title: "", due: null, projectKey: null }] } }],
