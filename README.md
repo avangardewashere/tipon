@@ -5,7 +5,8 @@
 *Tipon* is Tagalog for *to gather*. Write down everything on your mind in one go, press **Sort it**,
 check what it found, and get on with your day.
 
-**v0** — six blocks, 499 tests, and no account to create.
+**v0.5** — install it to your home screen, and it opens with no signal. 556 tests, and still no
+account to create.
 
 ## What it does
 
@@ -47,6 +48,22 @@ data clears it. **Backup → Export** writes a plain JSON file you can read, kee
 
 Anything Tipon can't read — a corrupted file, a backup from a newer version — is copied aside under a
 `tipon.kept.…` name and listed on the Backup page. Nothing is ever thrown away quietly.
+
+## Install it, and use it with no signal
+
+Open Tipon on your phone and add it to the home screen — Chrome offers it from the menu, Safari from
+**Share → Add to Home Screen**. It then opens like an app, without the address bar.
+
+Installing is worth doing even if you don't care about the icon: **Safari evicts the storage of sites
+you haven't opened in about a week**, and an installed app is treated far less aggressively. Tipon
+also asks the browser, once, to keep its storage for good. Keep exporting backups anyway.
+
+Once it's been opened, everything works with no network — writing, sorting, adding, every page, even
+a cold start in airplane mode. The only thing that needs a connection is sorting with Claude, and
+Tipon says so rather than failing at a button press; its own rules do the sorting instead.
+
+When a new version is deployed, a line appears in the footer offering it. Nothing updates underneath
+you mid-sentence.
 
 ## Using Claude (optional)
 
@@ -100,19 +117,22 @@ the only environment variables are the two above, and the app works without them
 - **Swappable parts sit behind interfaces:** storage (a `Map` in tests, `localStorage` in the app)
   and the two things that sort a dump.
 
-## Limits of v0, on purpose
+## Limits, on purpose
 
 | Limit | The plan |
 |---|---|
 | One browser at a time; no accounts or sync | Export/Import bridges devices. Accounts in v1 |
 | Clearing browser data clears Tipon | Keep a backup |
+| Durable storage is a request a browser may refuse | Keep a backup — that advice never stops being true |
 | Anyone with the access code can spend your AI credits | Keep it private, keep a spend limit. Accounts in v1 |
-| No dark mode | After v0 — the colours are already CSS variables |
+| No dark mode | Next — the colours are already CSS variables |
 | No Google Calendar, email brief, or chat | Later, one at a time |
+| No push notifications | They need a server, so they wait for v1 |
 
 ## Documentation
 
-- [docs/PLAN.md](docs/PLAN.md) — the six-block plan and every decision
+- [docs/PLAN.md](docs/PLAN.md) — the six-block v0 plan and every decision
+- [docs/PLAN-v0.5.md](docs/PLAN-v0.5.md) — v0.5: installable, and working with no signal
 - [docs/blocks/](docs/blocks/) — notes on each block: what was built, what was learned, the bugs that
   were planted to prove the tests work, and what was deliberately left out
 - [docs/RELEASE.md](docs/RELEASE.md) — the checklist for cutting a release

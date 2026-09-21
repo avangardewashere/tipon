@@ -46,6 +46,9 @@ export function describeExtractError(code: string): string {
       return "Claude isn't set up on this copy of Tipon, so it sorted this with rules instead.";
     case "bad-reply":
       return "Claude's answer didn't make sense, so Tipon sorted this with rules instead.";
+    case "offline":
+      // Not a failure worth apologising for: the rules never needed a network.
+      return "You're offline, so Tipon sorted this with its own rules.";
     default:
       return "Claude couldn't be reached, so Tipon sorted this with rules instead.";
   }

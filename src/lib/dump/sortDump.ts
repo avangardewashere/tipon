@@ -27,6 +27,8 @@ export type SortOptions = Readonly<{
   accessCode: string;
   /** Swapped in tests. */
   fetchImpl?: typeof fetch;
+  /** What the app already knows about the network, so the fallback can say which it was. */
+  offline?: boolean;
 }>;
 
 /** The proposal shape as it arrives over the wire. Checked again on this side. */
@@ -51,7 +53,14 @@ const wireProposalSchema = z.object({
   }),
 });
 
-export async function sortDump({ text, today, projects, accessCode, fetchImpl }: SortOptions): Promise<SortOutcome> {
+export async function sortDump({
+  text,
+  today,
+  projects,
+  accessCode,
+  fetchImpl,
+  offline = false,
+}: SortOptions): Promise<SortOutcome> {
   const withRules = (problem: string | null): SortOutcome => ({
     proposal: parseDump(text, { today, projects }),
     source: "rules",
@@ -81,8 +90,10 @@ export async function sortDump({ text, today, projects, accessCode, fetchImpl }:
       body: JSON.stringify(request),
     });
   } catch {
-    // Offline, or the server isn't there. The rules don't need a network.
-    return withRules(describeExtractError("upstream"));
+    // The rules don't need a network. Say which it was: "you're offline" is a fact about
+    // the room, and "Claude couldn't be reached" is a fact about the server — telling
+    // someone the wrong one sends them to debug the wrong thing.
+    return withRules(describeExtractError(offline ? "offline" : "upstream"));
   }
 
   const body: unknown = await response.json().catch(() => null);
